@@ -43,6 +43,10 @@ z.object({
 - Every debugging post fills `symptom` and `cause`. They drive the diagnostic strip, the index previews, and the RSS summaries.
 - `stack` lists versions the post was verified against (e.g. `['Proxmox 8.2', 'UniFi 9.x']`).
 
+### Projects
+
+Project write-ups live in `src/content/projects/*.mdx` (schema in `src/content.config.ts`: title, description ≤160, url?, repo?, stack[], status enum, order, draft). No `symptom`/`cause` — the diagnostic strip is posts-only. Write-ups are drafted from repo evidence (READMEs, planning docs, commit history) with `TODO(verify)` markers for anything unevidenced; Jayson approves before `draft: false`. All sanitization rules apply unchanged.
+
 ## Design
 
 ```css
