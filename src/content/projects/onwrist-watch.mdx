@@ -6,7 +6,7 @@ repo: 'https://github.com/jdstemmler/onwrist.watch'
 stack: ['SvelteKit 2', 'Svelte 5', 'Drizzle ORM', 'Postgres', 'Docker']
 status: 'active'
 order: 1
-draft: true
+draft: false
 ---
 
 import { Image } from 'astro:assets';
@@ -50,7 +50,11 @@ first, the independent middle tasks in parallel worktrees, iPhone verification
 explicitly deferred back to me. No Cloudflare wiring — the app had to work with
 plain `docker compose up` and the bearer token alone.
 
-{/* TODO(verify: how the overnight run actually went — what worked, what needed fixing in the morning) */}
+The overnight run went great. What I found in the morning wasn't a pile of
+broken tasks — it was a working app whose rough edges were feature adds and
+polish items that needed some re-work. Fixing and extending something that
+already runs is a very different morning than debugging something that
+doesn't.
 
 ## What actually shipped
 
@@ -65,7 +69,11 @@ console seeded from an `ADMIN_EMAIL` for user management. SQLite became
 Postgres. Photos live on local disk by default but can point at any
 S3-compatible private bucket.
 
-{/* TODO(verify: why the single-user → multi-tenant pivot) */}
+The pivot from single-user to multi-tenant wasn't in a plan. I wanted to see
+what it would look like — and then I showed it to someone, and they
+immediately wanted to use it. That's the whole story: the moment a second
+person wants an account, "no accounts, no multi-tenancy" stops being a
+simplifying constraint and becomes the thing you rebuild.
 
 <Image src={statsDark} alt="onwrist stats dashboard in dark mode: a wrist-time-share chart and a day-of-week breakdown, with summary tiles for watches, sessions logged, total hours worn, and tracking-since date." />
 
@@ -87,7 +95,12 @@ composed server-side — the client is a dumb renderer of state the server hands
 it, which is what let the same backend drive both an iOS Shortcut and a web PWA
 without duplicating the state machine.
 
-{/* TODO(verify: confirm these survived into onwrist as shipped) */}
+Those aren't aspirations from the design doc — they're in the shipped code.
+The server has an `assertNoOverlap` that runs on every session mutation, open
+sessions participate in the overlap math via an end-of-time sentinel, edits
+re-validate, and the invariants even picked up a new dimension the original
+design never needed: they're scoped per tenant, with tests asserting that one
+user's overlap math ignores everyone else's sessions.
 
 ## Running it yourself
 
