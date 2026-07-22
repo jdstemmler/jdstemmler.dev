@@ -1,0 +1,47 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+const projects = (await getCollection('projects', ({ data }) => !data.draft)).sort(
+  (a, b) => a.data.order - b.data.order
+);
+---
+
+<Base
+  title="Projects — jdstemmler.dev"
+  description="Things I've built and shipped: self-hosted apps and the tooling behind this site."
+>
+  <p class="label">Projects</p>
+  <h1 class="page-title">Projects</h1>
+  <ul class="post-list">
+    {
+      projects.map((project) => (
+        <li>
+          <p class="entry-meta">
+            {project.data.status}
+            {' · '}
+            {project.data.stack.join(' · ')}
+          </p>
+          <h2 class="entry-title">
+            <a href={`/projects/${project.id}/`}>{project.data.title}</a>
+          </h2>
+          <p class="entry-desc">{project.data.description}</p>
+          <p class="entry-meta">
+            {project.data.url && <a href={project.data.url}>Site</a>}
+            {project.data.url && project.data.repo && ' · '}
+            {project.data.repo && <a href={project.data.repo}>Source</a>}
+          </p>
+        </li>
+      ))
+    }
+  </ul>
+</Base>
+
+<style>
+  .entry-desc {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    margin: 0.4rem 0 0.6rem;
+  }
+</style>

@@ -1,0 +1,65 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+export async function getStaticPaths() {
+  const projects = await getCollection('projects', ({ data }) => !data.draft);
+  return projects.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const { title, description, url, repo, stack, status } = post.data;
+
+const stripProtocol = (href: string) => href.replace(/^https?:\/\//, '');
+const stripGithub = (href: string) => href.replace(/^https:\/\/github\.com\//, '');
+---
+
+<Base title={`${title} — jdstemmler.dev`} description={description}>
+  <article>
+    <header>
+      <p class="label">Project</p>
+      <h1 class="post-title">{title}</h1>
+
+      <dl class="meta">
+        <dt>Status</dt>
+        <dd>{status}</dd>
+        {
+          url && (
+            <>
+              <dt>Site</dt>
+              <dd>
+                <a href={url}>{stripProtocol(url)}</a>
+              </dd>
+            </>
+          )
+        }
+        {
+          repo && (
+            <>
+              <dt>Source</dt>
+              <dd>
+                <a href={repo}>{stripGithub(repo)}</a>
+              </dd>
+            </>
+          )
+        }
+        {
+          stack.length > 0 && (
+            <>
+              <dt>Stack</dt>
+              <dd class="verified">{stack.join(' · ')}</dd>
+            </>
+          )
+        }
+      </dl>
+    </header>
+
+    <div class="prose">
+      <Content />
+    </div>
+  </article>
+</Base>
