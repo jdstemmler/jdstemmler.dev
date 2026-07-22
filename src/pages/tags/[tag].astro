@@ -1,0 +1,93 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('posts', ({ data }) => !data.draft);
+  const tags = [...new Set(posts.flatMap((post) => post.data.tags))];
+  return tags.map((tag) => ({
+    params: { tag },
+    props: {
+      posts: posts
+        .filter((post) => post.data.tags.includes(tag))
+        .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()),
+    },
+  }));
+}
+
+const { tag } = Astro.params;
+const { posts } = Astro.props;
+---
+
+<Base
+  title={`${tag} — jdstemmler.dev`}
+  description={`Posts tagged ${tag}: specific fixes with the wrong hypothesis named first.`}
+>
+  <p class="label">Tag</p>
+  <h1 class="page-title">{tag}</h1>
+  <ul class="post-list">
+    {
+      posts.map((post) => (
+        <li>
+          <p class="entry-meta">
+            <time datetime={post.data.pubDate.toISOString()}>
+              {post.data.pubDate.toISOString().slice(0, 10)}
+            </time>
+            {' · '}
+            {post.data.tags.join(' · ')}
+          </p>
+          <h2 class="entry-title">
+            <a href={`/posts/${post.id}/`}>{post.data.title}</a>
+          </h2>
+          {post.data.symptom && post.data.cause && (
+            <dl class="mini-readout">
+              <dt class="label">Symptom</dt>
+              <dd class="mini-sym">{post.data.symptom}</dd>
+              <dt class="label">Cause</dt>
+              <dd class="mini-cause">{post.data.cause}</dd>
+            </dl>
+          )}
+        </li>
+      ))
+    }
+  </ul>
+</Base>
+
+<style>
+  .mini-readout {
+    margin: 0.8rem 0 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.35rem 1.1rem;
+  }
+  .mini-readout dt {
+    padding-top: 0.2em;
+  }
+  .mini-readout dd {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .mini-sym {
+    color: var(--muted);
+  }
+  .mini-cause {
+    color: var(--signal);
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: -0.005em;
+  }
+  @media (max-width: 620px) {
+    .mini-readout {
+      grid-template-columns: 1fr;
+      gap: 0.1rem 0;
+    }
+    .mini-readout dt {
+      padding-top: 0.55rem;
+    }
+    .mini-readout dt:first-child {
+      padding-top: 0;
+    }
+  }
+</style>

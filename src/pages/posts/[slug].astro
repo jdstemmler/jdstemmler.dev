@@ -39,7 +39,7 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
         </dd>
         <dt>Tags</dt>
         <dd class="tags">
-          {tags.map((tag) => <span>{tag}</span>)}
+          {tags.map((tag) => <a href={`/tags/${tag}/`}>{tag}</a>)}
         </dd>
         {
           stack.length > 0 && (

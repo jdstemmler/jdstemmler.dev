@@ -211,13 +211,20 @@ a {
 .meta dd {
   margin: 0;
 }
-.meta .tags span {
+.meta .tags a {
   color: var(--paper);
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
 }
-.meta .tags span + span::before {
+.meta .tags a:hover {
+  text-decoration-color: var(--signal);
+}
+.meta .tags a + a::before {
   content: '·';
   color: var(--muted);
   margin: 0 0.5ch;
+  display: inline-block; /* escapes the underline */
 }
 .meta .verified {
   color: var(--muted);
