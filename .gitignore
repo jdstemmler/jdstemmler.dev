@@ -26,3 +26,6 @@ scratch/
 shots/
 .playwright-mcp/
 design-proposals/
+
+# local decision record — contains personal/work context, never publish
+docs/spec.md

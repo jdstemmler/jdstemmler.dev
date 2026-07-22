@@ -18,6 +18,13 @@ const { title, description } = Astro.props;
     {description && <meta name="description" content={description} />}
     <link rel="canonical" href={Astro.url} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" type="application/rss+xml" title="jdstemmler.dev" href="/rss.xml" />
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:url" content={Astro.url} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="jdstemmler.dev" />
+    <meta name="twitter:card" content="summary" />
     <link
       rel="preload"
       href="/fonts/plex-serif-400.woff2"
@@ -56,7 +63,13 @@ const { title, description } = Astro.props;
     <footer class="site-footer">
       <div class="bar">
         <span>© {new Date().getFullYear()} Jayson Stemmler</span>
-        <a href="/posts/">All posts</a>
+        <span>
+          <a href="https://github.com/jdstemmler/jdstemmler.dev">Site source</a>
+          {' · '}
+          <a href="/rss.xml">RSS</a>
+          {' · '}
+          <a href="/posts/">All posts</a>
+        </span>
       </div>
     </footer>
   </body>

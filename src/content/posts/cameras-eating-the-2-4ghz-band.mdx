@@ -10,8 +10,9 @@ stack: ['UniFi Network 10.2.105', 'U7 Pro XG 8.5.21', 'UDM Pro', 'UniFi G6 camer
 ---
 
 import { Image } from 'astro:assets';
-import airtimeCliff from '../../assets/posts/cameras-eating-the-2-4ghz-band/airtime-cliff.png';
+import airtimeCliff from '../../assets/posts/cameras-eating-the-2-4ghz-band/airtime-cliff-24h.png';
 import interferenceParadox from '../../assets/posts/cameras-eating-the-2-4ghz-band/interference-paradox.jpg';
+import nestHubExperience from '../../assets/posts/cameras-eating-the-2-4ghz-band/nest-hub-experience.png';
 
 For months I was convinced I had a Nest Hub problem. Then, separately, an
 Apple TV problem. I googled Nest Hub disconnect threads, moved the hubs around
@@ -184,10 +185,19 @@ comfortable on 2.4GHz can land in marginal territory after the move.
 
 The Nest Hub disconnects stopped entirely. Not reduced — stopped. I never even
 needed to move the hubs off the 2.4GHz SSID; once the cameras stopped eating
-the channel, the hubs were fine exactly where they were.
+the channel, the hubs were fine exactly where they were. Here's the same Hub
+Max from the CEF log above, checked while writing this post:
+
+<Image src={nestHubExperience} alt="UniFi client panel for the Nest Hub Max showing WiFi Experience rated Excellent at 99 percent, a solid green experience bar across the last 24 hours, and an uptime of 19 days, 12 hours, 28 minutes." />
+
+Nineteen days of uptime on a device that used to drop every hour or two.
 
 The Apple TV got moved to the main network's 5GHz SSID, where it should have
-been all along, and the Plex stuttering vanished with it.
+been all along, and the Plex stuttering vanished with it. The weekend list got
+worked through too — the garage AP's 5GHz radio now runs 80 MHz on channel 48,
+off DFS entirely — and I've since relocated a couple of APs, so today's
+channel map no longer matches April's. The Nest Hub outcome held through all
+of it.
 
 ## Takeaways
 

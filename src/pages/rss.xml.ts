@@ -12,6 +12,9 @@ export async function GET(context: APIContext) {
     description:
       'Homelab, self-hosting, and Claude Code — write-ups of specific fixes, with the wrong hypothesis named first.',
     site: context.site!,
+    xmlns: { atom: 'http://www.w3.org/2005/Atom' },
+    customData:
+      '<atom:link href="https://jdstemmler.dev/rss.xml" rel="self" type="application/rss+xml"/>',
     items: posts.map((post) => ({
       title: post.data.title,
       pubDate: post.data.pubDate,

@@ -79,8 +79,9 @@
     --ink: #E8E6E1;
     --ink-2: #DCDAD3;
     --paper: #1A1D26;
-    --muted: #5A6478;
-    --signal: #B07E00; /* darkened: yellow can't carry text on warm paper */
+    --muted: #545E72; /* 4.89:1 on the readout surface — #5A6478 sat at 4.47 */
+    --signal: #7E5A00; /* darkened: 5.03:1 on paper — the small cause previews are
+                          normal-size bold text and need 4.5:1, not just large-text 3:1 */
     --wrong: #B83232;
     color-scheme: light;
   }
@@ -300,7 +301,11 @@ a {
   margin: 2.2rem 0;
 }
 .prose table {
-  width: 100%;
+  /* block + overflow keeps wide tables scrolling in place instead of
+     dragging the page sideways on phones */
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
   border-collapse: collapse;
   margin: 2.2rem 0;
   font-family: var(--font-mono);
@@ -367,12 +372,12 @@ a {
   --astro-code-color-background: var(--ink-2);
   --astro-code-token-constant: color-mix(in srgb, var(--paper) 82%, var(--signal));
   --astro-code-token-string: color-mix(in srgb, var(--signal) 45%, var(--paper));
-  --astro-code-token-comment: var(--muted);
+  --astro-code-token-comment: color-mix(in srgb, var(--muted) 78%, var(--paper)); /* 5.2:1 on ink-2; bare --muted is 4.34 */
   --astro-code-token-keyword: color-mix(in srgb, var(--paper) 60%, var(--muted));
   --astro-code-token-parameter: var(--paper);
   --astro-code-token-function: var(--paper);
   --astro-code-token-string-expression: color-mix(in srgb, var(--signal) 45%, var(--paper));
-  --astro-code-token-punctuation: var(--muted);
+  --astro-code-token-punctuation: color-mix(in srgb, var(--muted) 78%, var(--paper));
   --astro-code-token-link: var(--paper);
 }
 

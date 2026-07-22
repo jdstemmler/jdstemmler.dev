@@ -22,32 +22,28 @@ const { symptom, cause } = Astro.props;
 </div>
 
 <style>
+  /* Unboxed instrument readout: mono labels and the signal gutter tick carry
+     the structure — no callout border (cold design read: the box diluted it). */
   .readout {
     margin: 2.4rem 0 2.8rem;
-    border: 1px solid var(--rule);
-    background: color-mix(in srgb, var(--ink-2) 55%, transparent);
     display: grid;
     grid-template-columns: max-content 1fr;
+    gap: 1.15rem 1.5rem;
   }
   .row {
     display: contents;
   }
   .cell-label {
-    padding: 1.05rem 1.15rem;
-    border-right: 1px solid var(--rule);
+    padding: 0.2rem 0 0 1rem;
     display: flex;
     align-items: flex-start;
     position: relative;
   }
   .cell-value {
-    padding: 1.05rem 1.25rem;
+    padding: 0;
   }
   .cell-value p {
     margin: 0;
-  }
-  .row.cause .cell-label,
-  .row.cause .cell-value {
-    border-top: 1px solid var(--rule-2);
   }
   .sym-text {
     font-family: var(--font-body);
@@ -68,9 +64,9 @@ const { symptom, cause } = Astro.props;
     content: '';
     position: absolute;
     left: 0;
-    top: 1.05rem;
-    bottom: 1.05rem;
-    width: 2px;
+    top: 0.1rem;
+    bottom: 0.1rem;
+    width: 3px;
     background: var(--signal);
     transform: scaleY(1);
     transform-origin: top;
@@ -102,24 +98,17 @@ const { symptom, cause } = Astro.props;
   @media (max-width: 620px) {
     .readout {
       grid-template-columns: 1fr;
+      gap: 0.45rem;
     }
     .cell-label {
-      border-right: none;
-      border-bottom: 1px solid var(--rule-2);
-      padding: 0.9rem 1.15rem 0.55rem;
-    }
-    .cell-value {
-      padding: 0.8rem 1.15rem 1rem;
+      padding: 0 0 0 1rem;
     }
     .row.cause .cell-label {
-      border-top: 1px solid var(--rule);
-    }
-    .row.cause .cell-value {
-      border-top: none;
+      margin-top: 1.1rem;
     }
     .row.cause .cell-label::before {
-      top: 0.9rem;
-      bottom: 0.55rem;
+      top: 0;
+      bottom: 0;
     }
   }
 </style>

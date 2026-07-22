@@ -2,7 +2,7 @@
 
 Personal technical blog. Topics: homelab, self-hosting, Claude/Claude Code. Astro, static output, deployed to Cloudflare Pages.
 
-Full rationale lives in `docs/spec.md`. This file is the binding version — where they conflict, say so rather than picking one.
+Full rationale lives in `docs/spec.md` — a local-only decision record, gitignored because it contains personal and work context; never commit or publish it. This file is the binding version — where they conflict, say so rather than picking one.
 
 ## Commands
 
