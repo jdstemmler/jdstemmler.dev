@@ -118,8 +118,17 @@ So instead: a second SSID, on the same IoT VLAN.
   2.4GHz `Sumatra` SSID, same firewall rules, same everything at L3. It's
   purely a wireless-layer split: capable devices get clean airspace, legacy
   devices keep their compatibility crutches.
-- Same passphrase as the original SSID — no security downside on the same
-  VLAN, and it saves re-typing a long password into devices via touchscreen.
+- Same passphrase as the original SSID — reusing it adds no new exposure when
+  both SSIDs land on the same VLAN, and it saves re-typing a long password
+  into devices via touchscreen.
+
+One tradeoff worth naming, because later in this post I call cameras the
+highest-value target on a home network: WPA2 with PMF disabled means
+management frames are unauthenticated, so anyone in radio range can spoof a
+deauth and knock a client offline. For a smart plug, nobody cares. For a
+camera, an availability attack is exactly the attack worth mounting — which
+makes "PMF disabled for compatibility" a deliberate tradeoff, not a free
+choice. It's one more reason the camera-VLAN item below hasn't left the list.
 
 Then I migrated all three cameras over, one first as a canary, then the
 other two.
