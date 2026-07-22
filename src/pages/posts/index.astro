@@ -1,0 +1,32 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+const posts = (await getCollection('posts', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+---
+
+<Base title="Posts — jdstemmler.dev" description="All posts, newest first.">
+  <h1>Posts</h1>
+  <ul>
+    {
+      posts.map((post) => (
+        <li>
+          <a href={`/posts/${post.id}/`}>{post.data.title}</a>
+          <time datetime={post.data.pubDate.toISOString()}>
+            {post.data.pubDate.toISOString().slice(0, 10)}
+          </time>
+          {post.data.symptom && post.data.cause && (
+            <dl>
+              <dt>Symptom</dt>
+              <dd>{post.data.symptom}</dd>
+              <dt>Cause</dt>
+              <dd>{post.data.cause}</dd>
+            </dl>
+          )}
+        </li>
+      ))
+    }
+  </ul>
+</Base>

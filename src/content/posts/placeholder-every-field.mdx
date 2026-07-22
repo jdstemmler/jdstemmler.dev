@@ -1,0 +1,39 @@
+---
+title: 'Placeholder post exercising every frontmatter field'
+description: 'A throwaway post that exists to prove the schema, Shiki highlighting, and the diagnostic strip all work. Delete before real content ships.'
+pubDate: 2026-07-22
+updatedDate: 2026-07-22
+tags: ['homelab', 'networking']
+draft: false
+symptom: 'Example symptom line — transfers to the NAS at 192.0.2.10 capped well below line rate'
+cause: 'Example cause line — traffic routed through the gateway instead of switching locally'
+stack: ['Example OS 1.0', 'Example Router 2.x']
+---
+
+This post is fake. It exists so every frontmatter field, the diagnostic strip,
+and Shiki syntax highlighting can be seen working before any real content is
+written. It gets deleted before the first real post ships.
+
+## A fenced code block
+
+```bash
+#!/usr/bin/env bash
+# placeholder script — never actually run anywhere
+for host in 192.0.2.10 192.0.2.20; do
+  ping -c 1 "$host"
+done
+```
+
+## Terminal output
+
+```console
+$ iperf3 -c 192.0.2.10
+Connecting to host 192.0.2.10, port 5201
+[  5] local 192.0.2.20 port 52814 connected to 192.0.2.10 port 5201
+[ ID] Interval           Transfer     Bitrate
+[  5]   0.00-1.00   sec   283 MBytes  2.37 Gbits/sec
+- - - - - - - - - - - - - - - - - - - - - - - - -
+(placeholder output — not from a real run)
+```
+
+That's everything the schema knows about, rendered once.

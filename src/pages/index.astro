@@ -1,0 +1,31 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+
+const posts = (await getCollection('posts', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+const recent = posts.slice(0, 5);
+---
+
+<Base
+  title="jdstemmler.dev"
+  description="Homelab, self-hosting, and Claude Code — write-ups of specific fixes, with the wrong hypothesis named first."
+>
+  <h1>jdstemmler.dev</h1>
+  <p>Homelab, self-hosting, and Claude Code. Write-ups of specific, hard-won fixes.</p>
+
+  <h2>Recent posts</h2>
+  <ul>
+    {
+      recent.map((post) => (
+        <li>
+          <a href={`/posts/${post.id}/`}>{post.data.title}</a>
+          <time datetime={post.data.pubDate.toISOString()}>
+            {post.data.pubDate.toISOString().slice(0, 10)}
+          </time>
+        </li>
+      ))
+    }
+  </ul>
+</Base>
