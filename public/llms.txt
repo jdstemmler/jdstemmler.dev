@@ -1,0 +1,39 @@
+# jdstemmler.dev
+
+> Personal technical blog by Jayson Stemmler, a data scientist and homelabber.
+> Write-ups of specific, hard-won fixes for homelab, self-hosting, and Claude
+> Code problems. Every debugging post opens with the wrong hypothesis first,
+> then the actual cause; each carries a SYMPTOM/CAUSE pair. No command output,
+> version numbers, or benchmark figures are ever invented — if it's shown, it
+> was actually run.
+
+Notes for readers of any kind: pages are static HTML with zero client-side
+JavaScript. IP addresses in posts are RFC 5737 documentation placeholders, and
+network names are pseudonyms — described behavior is real, identifiers are not.
+
+## Posts
+
+- [My cameras were eating the 2.4GHz band](https://jdstemmler.dev/posts/cameras-eating-the-2-4ghz-band/):
+  Nest Hubs kept dropping off WiFi; the cause was UniFi cameras streaming
+  143 GB/day over 2.4GHz, saturating channel 1 at 95% airtime. Diagnosis via
+  CEF disconnect logs and per-radio airtime stats; fixed with a 5GHz-only SSID
+  on the same VLAN.
+- [All posts](https://jdstemmler.dev/posts/): reverse-chronological index with
+  symptom/cause previews.
+- [RSS feed](https://jdstemmler.dev/rss.xml): full index; item summaries are
+  the SYMPTOM/CAUSE pairs.
+
+## Projects
+
+- [onwrist.watch](https://jdstemmler.dev/projects/onwrist-watch/): a
+  self-hosted, multi-tenant watch-collection tracker (SvelteKit + Postgres),
+  designed as a single-user app and built overnight by an unattended Claude
+  orchestrator, then rebuilt multi-tenant.
+- [jdstemmler.dev](https://jdstemmler.dev/projects/jdstemmler-dev/): this site
+  as a project — the content model, the Claude Code tooling that enforces the
+  site's own honesty rules, and the build story.
+
+## About
+
+- [About](https://jdstemmler.dev/about/): who runs this site and where else to
+  find their work.
