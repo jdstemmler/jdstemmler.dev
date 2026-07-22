@@ -29,3 +29,6 @@ design-proposals/
 
 # local decision record — contains personal/work context, never publish
 docs/spec.md
+
+# planning docs stay local — the write-ups are the public story
+docs/superpowers/
