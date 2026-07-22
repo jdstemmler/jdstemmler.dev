@@ -1,0 +1,78 @@
+---
+title: 'jdstemmler.dev'
+description: 'This site: an Astro 5 blog with zero client JavaScript, a diagnostic-strip content model, and Claude Code tooling that enforces its own rules.'
+url: 'https://jdstemmler.dev'
+repo: 'https://github.com/jdstemmler/jdstemmler.dev'
+stack: ['Astro 5', 'TypeScript', 'MDX', 'IBM Plex', 'Cloudflare Pages']
+status: 'active'
+order: 2
+draft: true
+---
+
+This is the site you're reading. It's an Astro 5 blog with static output and
+zero client JavaScript on every page, deployed to Cloudflare Pages. The posts
+are debugging write-ups — a specific thing broke, I chased the wrong hypothesis
+first, and here's what it actually was. The project is as much the tooling that
+keeps those write-ups honest as it is the pages themselves.
+
+## The content model
+
+Every debugging post carries a `symptom` and a `cause` in its frontmatter —
+what it looked like, and what it actually was. That one pair is the spine of the
+whole site. It drives the signature design element (the diagnostic strip, a
+two-channel instrument readout with the symptom in muted gray over the cause in
+signal yellow), the previews on the index page, and the summaries in the RSS
+feed. One source of truth, three surfaces. It also means a reader can tell in
+three seconds whether a post solves their problem, which is the entire value
+proposition of a site like this.
+
+## The rules that make it trustworthy
+
+The constraints are the point. Zero client JavaScript on article pages — no
+framework islands, no client-side syntax highlighter; Shiki runs at build time.
+Never invent command output, version numbers, or benchmark figures: every
+command shown is one that was actually run, with its real output. Nothing about
+real infrastructure ships — no real IPs, hostnames, or VLAN IDs, only RFC 5737
+documentation ranges and generic placeholders. These aren't aspirations in a
+style guide. They're enforced.
+
+## The tooling enforces its own rules
+
+The interesting artifact here is `.claude/` — the Claude Code tooling the site
+is written with, which encodes the rules above so they can't quietly rot.
+
+- **`new-post`** takes a messy brain-dump of what broke and what fixed it and
+  emits a valid MDX skeleton: correct frontmatter, a filled diagnostic strip,
+  and a `TODO(verify)` marker everywhere real output still has to be pasted. It
+  won't write prose from scratch or guess at a value — a gap becomes a marked
+  gap, never a plausible-looking fabrication.
+- **`verify-post`** is the pre-publish checklist: schema validation, leftover
+  `TODO(verify)` markers, description length, and the sanitization scan, run
+  before anything flips to `draft: false`.
+- A **content-safety hook** runs the sanitization patterns at write time — it
+  scans Write and Edit calls under `src/content/` — and again as a backstop
+  before every commit. RFC 1918 addresses, internal hostname suffixes, and VLAN
+  IDs are blocked outright. If it fires, the fix is the content, not a bypass.
+- A **build-check hook** runs `astro check` after source edits, so a broken
+  build surfaces immediately instead of at deploy time.
+
+## How it was built
+
+The rationale came first: I wrote the spec in `docs/spec.md` before any code,
+down to the design language — instrumentation, not bioluminescence — and the
+sodium-yellow signal color. Then the site was built in a day, on 2026-07-22,
+with Claude Code. The git history reads as the phases it went through:
+skeleton and content schema, the design system, then a round of review fixes.
+
+Typography ran as three parallel, competing proposals. The one that won pairs
+IBM Plex — Sans Condensed, Serif, and Mono — for an instrument-heritage feel
+that matches the diagnostic-strip conceit; the faces are self-hosted, no font
+CDN. Before shipping, three reviewers went over it independently: accessibility,
+performance, and a cold read of the design. That last pass is why the diagnostic
+strip has no callout box today — the border diluted the signal, so it came out,
+leaving the mono labels and the yellow gutter tick to carry the structure.
+
+## Deploys
+
+Cloudflare Pages via the Git integration. Every push to `main` builds the static
+output and deploys it — no separate pipeline to babysit.
