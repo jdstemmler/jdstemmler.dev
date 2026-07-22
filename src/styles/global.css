@@ -158,6 +158,10 @@ a {
 .wordmark .sig {
   color: var(--muted);
 }
+.nav-links {
+  display: flex;
+  gap: 1.4rem;
+}
 .nav-links a {
   font-family: var(--font-mono);
   font-weight: 400;
