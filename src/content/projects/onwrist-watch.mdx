@@ -1,0 +1,103 @@
+---
+title: 'onwrist.watch'
+description: 'A self-hosted, multi-tenant watch-collection tracker: inventory, low-friction wear logging as an installable PWA, and a stats dashboard.'
+url: 'https://onwrist.watch'
+repo: 'https://github.com/jdstemmler/onwrist.watch'
+stack: ['SvelteKit 2', 'Svelte 5', 'Drizzle ORM', 'Postgres', 'Docker']
+status: 'active'
+order: 1
+draft: true
+---
+
+import { Image } from 'astro:assets';
+import collectionDark from '../../assets/projects/onwrist/collection-dark.webp';
+import statsDark from '../../assets/projects/onwrist/stats-dark.webp';
+
+onwrist is a self-hosted watch-collection tracker. You run one SvelteKit app
+container plus Postgres with `docker compose`, sign up, and get three things:
+an inventory of every watch you own with photos and specs, low-friction
+logging of when each watch goes on and comes off your wrist, and a stats
+dashboard — day-of-week, time-of-day, total wear, cost-per-wear, calendar
+views. It is multi-tenant: self-serve accounts, so a single install can host
+more than just me.
+
+The wear logger is the part I actually use every day. Open `/log` on your
+phone, Add to Home Screen, and the installed PWA opens straight to the current
+on-wrist state with one-tap put-on, swap, and take-off, plus backfill and
+inline corrections. No companion app.
+
+<Image src={collectionDark} alt="onwrist collection view in dark mode: a grid of photo cards, one per watch, each showing the watch on a strap with its nickname and key stats below." />
+
+## Where it started
+
+The design predates the name. On 2026-07-14 I wrote a spec for a project
+codenamed "horolog" — horology plus log — and it was a deliberately smaller
+thing than what shipped. Single user. No accounts, no multi-tenancy. SQLite
+via Drizzle, one Docker container behind an existing cloudflared tunnel, with
+dashboard routes protected by Cloudflare Access and the API guarded by a
+single static bearer token. The primary way to log a wear wasn't even the web
+app — it was an iOS Shortcut that made one `GET /api/state` call and rendered
+a menu from whatever the server told it. The web PWA was the fallback and
+correction surface.
+
+Then I did something I'd been wanting to try: I handed the build to an
+unattended overnight orchestrator. The kickoff instructed a single agent to
+execute a 16-task implementation plan via subagent-driven development while I
+slept — dispatch a fresh subagent per task, review each result against its
+contract and the test suite before moving on, commit and push after every
+task, and have a working, tested, seeded app by morning. Sequential tasks
+first, the independent middle tasks in parallel worktrees, iPhone verification
+explicitly deferred back to me. No Cloudflare wiring — the app had to work with
+plain `docker compose up` and the bearer token alone.
+
+{/* TODO(verify: how the overnight run actually went — what worked, what needed fixing in the morning) */}
+
+## What actually shipped
+
+The version at onwrist.watch is meaningfully bigger than horolog's spec. The
+single-user, static-token model became real multi-tenancy: self-serve accounts
+with argon2 password hashing and sliding 30-day sessions, so your phone stays
+logged in. Signup is gated by a Cloudflare Turnstile captcha that fails
+closed — no keys, no signup. Account email (verification, password reset) goes
+through Resend, and if you don't configure it, those links get printed to the
+container logs instead, which is fine for a solo install. There's an admin
+console seeded from an `ADMIN_EMAIL` for user management. SQLite became
+Postgres. Photos live on local disk by default but can point at any
+S3-compatible private bucket.
+
+{/* TODO(verify: why the single-user → multi-tenant pivot) */}
+
+<Image src={statsDark} alt="onwrist stats dashboard in dark mode: charts breaking down wear by day of week and time of day, with total-wear and cost-per-wear summaries." />
+
+## The decisions that survived
+
+For all the growth, the load-bearing modeling choices came straight from that
+first design doc and made it through intact. The most important one: wear data
+is stored as **sessions, not events**. The client speaks in events — put on,
+swap, take off — and the API translates them into session mutations
+immediately. A session is a watch, a start time, and an end time that's null
+while it's on your wrist. "What am I wearing right now?" is just the open
+session; there's no separate state table to drift out of sync.
+
+Two invariants are enforced in the API on every mutation, including edits and
+backfills: sessions never overlap, and at most one session is open at a time.
+That's what keeps a double-tapped shortcut or a backfill that straddles an
+existing session from quietly corrupting your history. And the status lines are
+composed server-side — the client is a dumb renderer of state the server hands
+it, which is what let the same backend drive both an iOS Shortcut and a web PWA
+without duplicating the state machine.
+
+{/* TODO(verify: confirm these survived into onwrist as shipped) */}
+
+## Running it yourself
+
+It's built to self-host. The tested exposure path is a Cloudflare tunnel:
+run cloudflared on the same host, point it at the app's local port, bind the
+app to localhost so the tunnel is the only way in, and you're done. Any HTTPS
+reverse proxy works too. Two things matter regardless. `ORIGIN` has to be the
+exact public URL, scheme and host both — otherwise every form POST is rejected
+as cross-site. And rate limiting: by default the app buckets by the connecting
+socket's address, so behind a proxy every request appears to come from the
+proxy and all your visitors collapse into one bucket. The fix is to set
+`ADDRESS_HEADER` to a header your proxy always overwrites — and to make the
+proxy the only path to the port, so the header can't be spoofed.
