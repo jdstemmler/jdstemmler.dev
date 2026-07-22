@@ -13,5 +13,16 @@ node_modules/
 # macOS
 .DS_Store
 
+# raw source notes for posts — real infra details, never commit
+scratch/
+
 # wrangler
 .wrangler/
+
+# visual companion sessions
+.superpowers/
+
+# local screenshots / browser artifacts
+shots/
+.playwright-mcp/
+design-proposals/

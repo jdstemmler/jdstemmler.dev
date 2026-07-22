@@ -1,4 +1,6 @@
 ---
+import '../styles/global.css';
+
 interface Props {
   title: string;
   description?: string;
@@ -15,16 +17,46 @@ const { title, description } = Astro.props;
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     <link rel="canonical" href={Astro.url} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="/fonts/plex-serif-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/plex-sans-cond-600.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/plex-mono-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
   </head>
   <body>
-    <header>
-      <nav>
-        <a href="/">jdstemmler.dev</a>
-        <a href="/posts/">Posts</a>
-      </nav>
-    </header>
-    <main>
+    <nav class="site-nav" aria-label="Primary">
+      <div class="bar">
+        <a class="wordmark" href="/">jdstemmler<span class="sig">.dev</span></a>
+        <div class="nav-links">
+          <a href="/posts/">Posts</a>
+        </div>
+      </div>
+    </nav>
+    <main class="wrap">
       <slot />
     </main>
+    <footer class="site-footer">
+      <div class="bar">
+        <span>© {new Date().getFullYear()} Jayson Stemmler</span>
+        <a href="/posts/">All posts</a>
+      </div>
+    </footer>
   </body>
 </html>

@@ -6,4 +6,9 @@ export default defineConfig({
   site: 'https://jdstemmler.dev',
   trailingSlash: 'always',
   integrations: [mdx()],
+  markdown: {
+    shikiConfig: {
+      theme: 'css-variables',
+    },
+  },
 });

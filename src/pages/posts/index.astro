@@ -8,21 +8,28 @@ const posts = (await getCollection('posts', ({ data }) => !data.draft)).sort(
 ---
 
 <Base title="Posts — jdstemmler.dev" description="All posts, newest first.">
-  <h1>Posts</h1>
-  <ul>
+  <p class="label">Index</p>
+  <h1 class="page-title">Posts</h1>
+  <ul class="post-list">
     {
       posts.map((post) => (
         <li>
-          <a href={`/posts/${post.id}/`}>{post.data.title}</a>
-          <time datetime={post.data.pubDate.toISOString()}>
-            {post.data.pubDate.toISOString().slice(0, 10)}
-          </time>
+          <p class="entry-meta">
+            <time datetime={post.data.pubDate.toISOString()}>
+              {post.data.pubDate.toISOString().slice(0, 10)}
+            </time>
+            {' · '}
+            {post.data.tags.join(' · ')}
+          </p>
+          <h2 class="entry-title">
+            <a href={`/posts/${post.id}/`}>{post.data.title}</a>
+          </h2>
           {post.data.symptom && post.data.cause && (
-            <dl>
-              <dt>Symptom</dt>
-              <dd>{post.data.symptom}</dd>
-              <dt>Cause</dt>
-              <dd>{post.data.cause}</dd>
+            <dl class="mini-readout">
+              <dt class="label">Symptom</dt>
+              <dd class="mini-sym">{post.data.symptom}</dd>
+              <dt class="label">Cause</dt>
+              <dd class="mini-cause">{post.data.cause}</dd>
             </dl>
           )}
         </li>
@@ -30,3 +37,42 @@ const posts = (await getCollection('posts', ({ data }) => !data.draft)).sort(
     }
   </ul>
 </Base>
+
+<style>
+  .mini-readout {
+    margin: 0.8rem 0 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.35rem 1.1rem;
+  }
+  .mini-readout dt {
+    padding-top: 0.2em;
+  }
+  .mini-readout dd {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .mini-sym {
+    color: var(--muted);
+  }
+  .mini-cause {
+    color: var(--signal);
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: -0.005em;
+  }
+  @media (max-width: 620px) {
+    .mini-readout {
+      grid-template-columns: 1fr;
+      gap: 0.1rem 0;
+    }
+    .mini-readout dt {
+      padding-top: 0.55rem;
+    }
+    .mini-readout dt:first-child {
+      padding-top: 0;
+    }
+  }
+</style>

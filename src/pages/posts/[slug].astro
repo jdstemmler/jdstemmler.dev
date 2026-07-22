@@ -1,6 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import DiagnosticStrip from '../../components/DiagnosticStrip.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('posts', ({ data }) => !data.draft);
@@ -13,46 +14,48 @@ export async function getStaticPaths() {
 const { post } = Astro.props;
 const { Content } = await render(post);
 const { title, description, pubDate, updatedDate, tags, symptom, cause, stack } = post.data;
+
+const fmt = (d: Date) => d.toISOString().slice(0, 10);
 ---
 
 <Base title={`${title} — jdstemmler.dev`} description={description}>
   <article>
     <header>
-      <h1>{title}</h1>
-      <p>
-        <time datetime={pubDate.toISOString()}>{pubDate.toISOString().slice(0, 10)}</time>
+      <p class="label">Debugging log</p>
+      <h1 class="post-title">{title}</h1>
+
+      <dl class="meta">
+        <dt>Date</dt>
+        <dd>
+          <time datetime={pubDate.toISOString()}>{fmt(pubDate)}</time>
+          {
+            updatedDate && (
+              <>
+                {' '}· updated{' '}
+                <time datetime={updatedDate.toISOString()}>{fmt(updatedDate)}</time>
+              </>
+            )
+          }
+        </dd>
+        <dt>Tags</dt>
+        <dd class="tags">
+          {tags.map((tag) => <span>{tag}</span>)}
+        </dd>
         {
-          updatedDate && (
+          stack.length > 0 && (
             <>
-              {' · updated '}
-              <time datetime={updatedDate.toISOString()}>
-                {updatedDate.toISOString().slice(0, 10)}
-              </time>
+              <dt>Verified against</dt>
+              <dd class="verified">{stack.join(' · ')}</dd>
             </>
           )
         }
-      </p>
-      <ul>
-        {tags.map((tag) => <li>{tag}</li>)}
-      </ul>
-      {
-        stack.length > 0 && (
-          <p>
-            Verified against: <span>{stack.join(', ')}</span>
-          </p>
-        )
-      }
-      {
-        symptom && cause && (
-          <dl>
-            <dt>Symptom</dt>
-            <dd>{symptom}</dd>
-            <dt>Cause</dt>
-            <dd>{cause}</dd>
-          </dl>
-        )
-      }
+      </dl>
+
+      {symptom && cause && <DiagnosticStrip symptom={symptom} cause={cause} />}
     </header>
-    <Content />
+
+    <div class="prose">
+      <Content />
+    </div>
   </article>
 </Base>
