@@ -1,0 +1,77 @@
+---
+title: 'Agent Teams needs prescriptive prompting'
+description: "Left to its own judgment it routes work to subagents you didn't ask for. Getting consistent behavior took explicit instructions, not suggestions."
+pubDate: 2026-07-29
+tags: ['claude']
+draft: true
+symptom: 'Work being routed to subagents without being asked, and inconsistently between otherwise identical runs'
+cause: 'Permissive phrasing leaves the routing decision to model judgment; only explicit, prescriptive instructions produce reliable behavior'
+stack: []
+---
+
+{/* TODO(verify: paste the Claude Code version and the exact feature name as it
+    appears in the product. Routing behavior changes between releases, so a post
+    about it is worthless without a version attached. */}
+
+The pitch for delegating to subagents is that you describe the goal and the
+orchestration sorts itself out. In practice, "sorts itself out" means the model
+decides — and a decision left to judgment is a decision that varies between
+runs.
+
+What I found is narrower and more useful than "it doesn't work": the routing
+behaves consistently when the instruction is prescriptive, and inconsistently
+when it's merely permissive. Telling it what it *may* do is not the same as
+telling it what to do.
+
+## What it looked like
+
+{/* TODO(verify: the concrete failure. What task, what did you expect to happen
+    inline, and what got farmed out instead? A single reproducible example is
+    worth more than the general claim.) */}
+
+The part that made this hard to pin down was the inconsistency. A run that
+behaved correctly didn't mean the instruction was working — it meant that run
+happened to land the right way.
+
+{/* TODO(verify: how many runs did you actually compare, and how did you decide
+    the difference was real rather than noise? This is the claim a skeptical
+    reader will push on hardest.) */}
+
+## Permissive versus prescriptive
+
+The wording that failed reads like guidance. The wording that worked reads like
+a rule with no room in it.
+
+{/* TODO(verify: paste both versions verbatim — the phrasing that produced
+    unreliable routing and the phrasing that fixed it. This is the whole post.
+    Everything else is framing around this comparison, and I'm not going to
+    invent example instructions. */}
+
+The pattern I'd draw out of it: negative constraints with an explicit trigger
+condition hold up, and positive suggestions about when something is
+"appropriate" don't. "Do not do X unless the user asks for it" survives; "use X
+when it would be helpful" hands the judgment straight back.
+
+{/* TODO(verify: does that generalization actually match what you saw, or is it
+    over-reading two examples? If it's a hypothesis rather than a finding, the
+    post should say so.) */}
+
+## Why this is worth writing down
+
+There's very little honest writing about agent orchestration that isn't
+marketing. The available material describes the intended behavior, which is not
+the same as documenting how it behaves when you're relying on it.
+
+## Takeaways
+
+1. **Permissive phrasing delegates the decision back to the model.** If you care
+   about the outcome, phrase it as a constraint.
+2. **Inconsistency is the signal, not the noise.** One good run tells you
+   nothing; the variance between runs is the actual finding.
+3. **Version-stamp anything you conclude here.** Routing is exactly the kind of
+   behavior that shifts between releases.
+
+{/* TODO(verify: is there a fourth — something about when delegation genuinely
+    was the right call? The post currently reads as entirely cautionary, and if
+    you've had cases where it worked well, saying so makes the rest more
+    credible. */}

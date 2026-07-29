@@ -1,0 +1,146 @@
+---
+title: "It wasn't the 10GbE adapter"
+description: "Transfers to the NAS capped around 2.4 Gbps on a 10GbE link. I was ready to RMA the adapter. The bottleneck was inter-subnet routing through the UDM Pro."
+pubDate: 2026-07-29
+tags: ['homelab', 'networking']
+draft: true
+symptom: '10GbE transfers to the NAS capped at ~2.4 Gbps, nowhere near line rate, on hardware rated for it end to end'
+cause: "Inter-subnet routing: the traffic was being forwarded through the UDM Pro's software stack instead of staying on the switch fabric — not the CalDigit adapter"
+stack: []
+---
+
+{/* TODO(verify: `stack` is deliberately empty — I won't guess versions. Paste
+    the exact ones this was verified against: macOS version, UniFi Network
+    version, UDM Pro firmware, UNAS Pro firmware, and the CalDigit model
+    string. That's what keeps the post from going stale silently. */}
+
+If you buy a 10GbE adapter, plug it into a 10GbE switch port, and copy a file to
+a NAS with a 10GbE uplink, you expect something in the neighborhood of 10 Gbps.
+I was getting about 2.4.
+
+Everything I read pointed at the dongle. Thunderbolt 10G adapters have a
+reputation — thermal throttling, driver problems, chipset lottery — and mine was
+the newest, least-trusted thing in the path. I was close to sending it back.
+
+The adapter was fine. My traffic was leaving the switch, going up to the router,
+getting forwarded between two subnets in software, and coming back down. The
+ceiling I kept hitting wasn't the link. It was the router's forwarding path.
+
+## The symptom
+
+{/* TODO(verify: paste the actual transfer numbers. What was the test — a Finder
+    copy of a large file, `dd` over SMB, something else? I have "~2.4 Gbps" from
+    your notes and nothing else. Include the file size and how consistent the
+    number was across runs, because "consistently 2.4" is a very different
+    signal from "2.4 on average with spikes.") */}
+
+The number that mattered most was how *stable* it was. A throttling adapter
+produces a sawtooth — good throughput for a while, then a fall off a cliff as
+it heats up, then partial recovery. A hard, flat ceiling that shows up on the
+first second of every transfer and never moves is a different kind of problem.
+It says something in the path has a fixed capacity, and you're sitting on it.
+
+{/* TODO(verify: was it actually flat? If it did look like thermal throttling
+    at first, say so — a wrong hypothesis that had real evidence behind it is a
+    much better story than one you held for no reason.) */}
+
+## What I checked first, and why none of it helped
+
+The dongle hypothesis generated a lot of activity and no information:
+
+{/* TODO(verify: list what you actually tried here. Candidates from the way you
+    described it — different cable, different switch port, checking the
+    negotiated link speed, watching adapter temperature, a different host. Only
+    include the ones you really did. Each one that came back clean is a piece of
+    evidence *against* the adapter, which is what makes this section worth
+    keeping rather than just a list of flailing.) */}
+
+The negotiated link speed is the check worth calling out, because it splits the
+problem cleanly. If both ends report a 10 Gbps link, the physical layer is done
+negotiating and the hardware is capable. Anything below line rate after that
+point is happening above the link — in the path the packets take, or in the
+protocol on top.
+
+{/* TODO(verify: paste the link-speed confirmation from both ends — the macOS
+    side and the switch port status in UniFi.) */}
+
+## The thing I wasn't looking at
+
+The Mac and the NAS were on different subnets.
+
+That single fact was invisible to me for a long time, because at the application
+layer nothing about it looks like a problem. The share mounts. Names resolve.
+Transfers work. Nothing errors out. It just goes slower than it should, forever.
+
+Traffic between two hosts on the same subnet gets switched — it stays on the
+switching fabric, which is built to move traffic at line rate and does it in
+hardware. Traffic between two subnets has to be *routed*, and on this network
+the thing doing the routing was the UDM Pro. Once a packet has to go up to the
+router and back to get to a machine on the same physical switch, the throughput
+you get is whatever the router's forwarding path can do — not what the link can
+do.
+
+That's the whole bug. It's not a misconfiguration in the sense that anything was
+set wrong; it's a topology decision, made for perfectly reasonable
+segmentation reasons, quietly setting a bandwidth ceiling on a path I expected
+to be fast.
+
+{/* TODO(verify: how did you actually catch this? Did you check the routing
+    table, notice the subnets in the UniFi client list, run a traceroute between
+    them? This is the pivot point of the whole post and I don't want to invent
+    the moment. If it was Claude reading a screenshot, say that — it's the same
+    honest framing as the cameras post.) */}
+
+{/* TODO(verify: worth a hard number here if you have one — the UDM Pro's actual
+    inter-subnet forwarding throughput on your setup. If you never measured it
+    directly and only inferred it from the transfer rate, say that instead. Do
+    not let me put a spec-sheet figure in as though you measured it.) */}
+
+## The fix
+
+Same-subnet placement. Put the Mac and the NAS on the same network so the
+traffic between them is switched rather than routed, and the router stops being
+in the path at all.
+
+{/* TODO(verify: exactly what you changed — which side moved, and how. And the
+    part readers will actually need: what did you give up? Putting a NAS on the
+    same subnet as a workstation undoes some of the segmentation that presumably
+    motivated the split in the first place. What was the reasoning, and would
+    you do it the same way again? */}
+
+{/* TODO(verify: paste the after numbers from the same test as the before. This
+    is the most important missing piece in the post — the whole argument rests
+    on the delta, and "it got faster" is not a result.) */}
+
+## Why this is worth writing down
+
+The failure mode here is that the wrong hypothesis is *expensive*. A 10GbE
+adapter that seems to underperform gets returned. The replacement behaves
+identically, because the replacement was never the problem, and now you've spent
+two weeks and a shipping label to learn nothing.
+
+The tell that would have saved me time: ask whether the two machines are on the
+same subnet *before* you suspect any hardware. It costs ten seconds and it
+eliminates the most likely non-obvious cause.
+
+## Takeaways
+
+1. **A flat ceiling is a capacity limit; a sawtooth is a thermal problem.** The
+   shape of the graph tells you which class of problem you have before you know
+   anything else.
+2. **Confirm the negotiated link speed early.** It cleanly separates "the
+   hardware can't" from "the path won't."
+3. **Same-subnet traffic is switched; cross-subnet traffic is routed.** On a
+   home network the router is almost never as fast as the switch, so any path
+   that crosses subnets inherits the router's ceiling.
+4. **Segmentation has a throughput cost, and nothing tells you.** No error, no
+   warning — just a number that's lower than it should be, indefinitely.
+5. **Suspect the topology before the newest component.** The new part is the
+   obvious suspect, which is exactly why it deserves less benefit of the doubt
+   than your instinct gives it.
+
+---
+
+*Addresses in this post are from the RFC 5737 documentation ranges and network
+names are generic. The throughput figures are from real transfers on this
+hardware.*

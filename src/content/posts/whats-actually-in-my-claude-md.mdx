@@ -1,0 +1,80 @@
+---
+title: "What's actually in my CLAUDE.md"
+description: "The lines that survived across machines and projects, the ones I deleted, and why most CLAUDE.md advice is about prompting rather than configuration."
+pubDate: 2026-07-29
+tags: ['claude']
+draft: true
+stack: []
+---
+
+{/* TODO(verify: paste the Claude Code version this reflects, plus the actual
+    portable CLAUDE.md you carry between machines. I only have this repo's
+    project-level file to work from.) */}
+
+Most writing about `CLAUDE.md` treats it as a prompt — a place for clever
+framing and encouragement. It isn't. It's configuration that gets prepended to
+every session, and the only question that matters for a given line is whether
+its absence would change what the model does.
+
+Lines that pass that test are worth their tokens. Lines that don't are
+decoration that you pay for on every single request.
+
+## The test I apply
+
+{/* TODO(verify: is this actually the rule you use, or my inference from the
+    file? Say it in your own terms — this is the spine of the post.) */}
+
+Delete the line and see if behavior changes. If you can't describe the specific
+wrong thing that happens without it, it doesn't go in.
+
+That rule kills most of what people put in these files: role-play preambles,
+"be concise," "think step by step," reassurance about quality. None of it
+survives contact with a real project, because none of it is falsifiable.
+
+## What earns a line
+
+The project file in this repo is a decent worked example — it's the one
+governing the posts on this site:
+
+- **Hard constraints with a stated consequence.** "Never invent command output,
+  version numbers, or benchmark figures" earns its place because the failure it
+  prevents is specific and fatal: plausible-looking commands that were never
+  run, on a site whose only asset is trust.
+- **Facts the model cannot derive.** The design tokens, the exact frontmatter
+  schema, the three permitted tags. Not preferences — inputs.
+- **Decisions already made, so they aren't relitigated.** Shiki for
+  highlighting, zero client JS on article pages, no dated URLs.
+- **Workflow ownership.** That I supply the messy account and Claude structures
+  it. This is the line that does the most work in that file, because it settles
+  who is responsible for the facts.
+
+## What I took out
+
+{/* TODO(verify: this is the section with the most value to a reader and the
+    least evidence available to me. What did you actually remove, and what went
+    wrong or stopped going wrong when you did? Concrete deletions beat
+    principles here.) */}
+
+## Portability
+
+{/* TODO(verify: the cross-system angle is the part nobody else writes about.
+    Which systems are you carrying this between, what's genuinely shared versus
+    per-project, and what broke when you moved a file that assumed one
+    environment?) */}
+
+The split that seems to hold: the shared file describes how I want to work, the
+project file describes what's true about this codebase. Voice and workflow rules
+travel. Schemas, tokens, and commands don't.
+
+## Takeaways
+
+1. **It's configuration, not a prompt.** Judge every line by whether removing it
+   changes behavior.
+2. **State the consequence, not just the rule.** A constraint with a reason
+   attached survives contact with an edge case; a bare prohibition gets
+   rationalized around.
+3. **Separate "how I work" from "what's true here."** The first is portable, the
+   second isn't, and mixing them is why these files rot.
+
+{/* TODO(verify: a fourth takeaway should come out of whatever the deletions
+    section ends up saying. Left out on purpose.) */}
