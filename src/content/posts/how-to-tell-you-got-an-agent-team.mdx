@@ -1,0 +1,263 @@
+---
+title: 'How to tell whether you actually got an agent team'
+description: "Claude decides whether to form a team, and the agent panel looks identical either way. The only reliable signal is on disk."
+pubDate: 2026-07-29
+tags: ['claude']
+draft: true
+symptom: 'Asked Claude Code for an agent team and got subagents instead, with the agent panel rendering both identically'
+cause: 'Team formation is a model judgment call, and the only ground truth is the members array in the team config on disk'
+stack: ['Claude Code 2.1.220']
+---
+
+Ask Claude Code to spawn an agent team and you will usually see agents appear in
+the panel below the prompt. That is not evidence that you got a team.
+
+Agent Teams and subagents are different features with different mechanics, and
+they render in the same panel. Which one you get is a decision the model makes,
+based on whether it judges your task complex enough to warrant a team. The docs
+are explicit about both halves of that:
+
+> Claude may sometimes use subagents instead of creating a team. Subagents appear
+> in the same agent panel as teammates, so the panel alone doesn't confirm a team
+> formed. If Claude spawned subagents instead, ask again and explicitly request an
+> agent team.
+
+So the official advice is to ask again. What isn't documented anywhere I could
+find — not the docs, not the community guides, not the practitioner roundups — is
+how to know whether asking again worked.
+
+It is checkable. Team state gets written to disk.
+
+## The two things people conflate
+
+Most writing on this treats "agent teams" and "subagents" as one feature with two
+names. They aren't.
+
+|  | Subagents | Agent teams |
+|---|---|---|
+| Communication | Report back to the main agent only | Teammates message each other directly |
+| Coordination | Main agent manages all work | Shared task list, self-claimed |
+| Context | Own window; result returns to the caller | Own window; fully independent |
+| Token cost | Lower — results summarized back | Higher — each teammate is a separate instance |
+
+The practical difference is peer-to-peer messaging. A subagent cannot tell another
+subagent what it found; everything routes through the parent. Teammates can talk
+to each other, and that is the entire reason to pay for a team.
+
+Agent Teams is also still experimental and off by default. Nothing forms unless
+you enable it:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}
+```
+
+## Where the ground truth lives
+
+With the flag set, a session writes:
+
+```
+~/.claude/teams/{team}/config.json      team membership
+~/.claude/teams/{team}/inboxes/*.json   mailboxes
+~/.claude/tasks/{team}/                 shared task list
+```
+
+`{team}` isn't something you pick. It's `session-` followed by the first eight
+characters of the session ID. That's more useful than it sounds: since
+`claude --session-id <uuid>` lets you *set* the session ID, you can know the exact
+directory to inspect before the session starts.
+
+## The check that doesn't work
+
+The obvious check is whether `~/.claude/teams/session-*/` exists. It's wrong.
+
+With the flag enabled that directory is created **at session startup, before any
+teammate exists**. This is the config from a session where I spawned nothing:
+
+```json
+{
+  "name": "session-a1b2c3d4",
+  "createdAt": 1785361482398,
+  "leadAgentId": "team-lead@session-a1b2c3d4",
+  "members": [
+    {
+      "agentId": "team-lead@session-a1b2c3d4",
+      "name": "team-lead",
+      "agentType": "team-lead",
+      "backendType": "in-process"
+    }
+  ]
+}
+```
+
+The directory exists. `config.json` exists. There is no team.
+
+## The check that also doesn't work
+
+Fine — count the members and exclude the lead:
+
+```bash
+jq '[.members[] | select(.agentId != .leadAgentId)] | length' \
+  ~/.claude/teams/session-a1b2c3d4/config.json
+```
+
+Run that against the config above and it returns `1`. There are no teammates.
+
+Inside the `.members[]` pipeline, `.` is a member object, so `.leadAgentId` is
+`null` rather than the lead's ID. The comparison becomes `.agentId != null`, which
+is true for everyone, so the lead counts itself as a teammate. Every team-less
+session reports exactly one — plausible enough to never look twice at.
+
+## The check that works
+
+Bind the lead before iterating:
+
+```bash
+jq '.leadAgentId as $lead
+    | [.members[] | select(.agentId != $lead)] | length' \
+  ~/.claude/teams/session-a1b2c3d4/config.json
+```
+
+That returns `0`. Or key off the type, which is shorter and reads better:
+
+```bash
+jq '[.members[] | select(.agentType != "team-lead")] | length' \
+  ~/.claude/teams/session-a1b2c3d4/config.json
+```
+
+Greater than zero means a team formed. Zero means you got something else,
+whatever the panel showed you.
+
+A second signal worth having: `inboxes/` is created lazily. If it never appears,
+no agent ever messaged another — so even when teammates did spawn, the
+peer-to-peer coordination you were paying for never actually happened.
+
+## The trap that will cost you an afternoon
+
+The team config directory is deleted when the session exits.
+
+Check afterwards and you find nothing, which reads exactly like "no team was ever
+created." The task list under `~/.claude/tasks/` does persist, but it records work
+items rather than membership, so it can't tell you who was on the team.
+
+To know what happened you have to look while the session is alive. For a one-off,
+run the `jq` above from another terminal. For anything repeatable, poll it —
+snapshot `config.json` on an interval and keep the copies.
+
+One caveat on "deleted at exit": I found a months-old team directory still sitting
+in `~/.claude/teams/`, presumably from a session that crashed rather than exited
+cleanly. Cleanup is best-effort, so a stale directory is one more way the
+existence check misleads you.
+
+{/* TODO(verify: I have a small harness that does the polling — watcher, scorer,
+    summarizer. Publish it as a gist and link it, or is the description above
+    enough? I'd rather not maintain a repo nobody asked for. */}
+
+## What the measurements showed
+
+{/* TODO(verify: paste the table from summary.md once the matrix has run. 12 runs:
+    permissive x3, then prescriptive x {unspecified, Sonnet 5, Opus 5} x3 each,
+    lead pinned to Opus 5. The two numbers that matter are formation rate by
+    phrasing, and how often the session's own report of which mechanism it used
+    was correct. Do not write this from expectation — if the effect is small, the
+    post says it's small. */}
+
+{/* TODO(verify: also whether headless and interactive runs agree. Teammates are
+    never spawned without approval, so if `claude -p` systematically fails to form
+    teams because a proposal needs a confirmation that never arrives, that's a
+    harness artifact and the numbers can't be quoted as general behavior. Needs
+    saying either way. */}
+
+## How to ask so that it happens
+
+The shape that holds up is closer to a work order than a request. Name the
+mechanism, name the workers, pin the model, and say what the lead should do while
+they run:
+
+```text
+Spawn three teammates as an agent team to review PR #142.
+Use Sonnet 5 for each teammate.
+
+  - teammate "security": auth and input validation
+  - teammate "perf": query patterns and hot paths
+  - teammate "tests": coverage of the changed lines
+
+Have them message each other directly if one finds something that
+changes another's read. Wait for all three to finish before you
+synthesize. Do not start reviewing yourself while they work.
+```
+
+Four things in there are load-bearing, and each maps to a documented failure:
+
+- **"as an agent team"** names the feature, so it isn't inferred from complexity.
+- **Named teammates** matter because the lead assigns names at spawn, and you need
+  them to message anyone directly later.
+- **An explicit model** matters because teammates do *not* inherit the lead's
+  model. Without it they use the *Default teammate model* from `/config`, which is
+  probably not what you assumed you were running.
+- **"Wait… do not start reviewing yourself"** addresses the documented failure of a
+  lead that quietly does the work instead of delegating it.
+
+## When a team is the right tool
+
+Teams earn their cost on read-heavy work where the parallel paths are genuinely
+independent: reviewing something along separate axes, researching several
+questions at once, or chasing competing hypotheses so the theories get argued
+against each other instead of explored in sequence. That last case is the
+strongest, because one agent working alone tends to find a single plausible
+explanation and stop looking.
+
+They're a poor fit for write-heavy work. Two teammates editing one file overwrite
+each other, and that's the most common complaint from people using this in anger.
+Sequential work, dependency-heavy work, and same-file edits all favor a single
+session or subagents.
+
+## Why subagents are usually the better answer
+
+Cost is the obvious reason. Each teammate is a separate instance with its own
+context, so a three-teammate team runs roughly three times the tokens — one
+published review of a small PR measured about 2.5×. If your fan-out is "read these
+four files and report back," you're paying team prices for subagent work.
+
+Coordination is the subtler reason. Teams add a task list, mailboxes, claim
+locking, and merge behavior. That machinery only pays off if the workers need to
+talk to each other; when they don't, it's overhead plus a larger surface for
+things to go wrong.
+
+And subagents are stable, while Agent Teams is explicitly experimental with known
+limitations around session resumption, task-status lag, and shutdown. That matters
+more if you're building a habit than if you're running an experiment.
+
+The question that settles it is narrow: **do these workers need to talk to each
+other?** If not, use subagents. Most of the time, they don't.
+
+## Takeaways
+
+1. **The panel doesn't tell you what you got.** Subagents and teammates render
+   identically, which is why this is easy to miss entirely.
+2. **The team directory existing is a false positive.** It's created at startup
+   with the flag on, before any teammate exists.
+3. **So is the obvious `jq` one-liner.** Referencing `.leadAgentId` from inside
+   `.members[]` makes every team-less session report one teammate.
+4. **Check while the session is alive.** The config directory is deleted at exit,
+   and cleanup after a crash is best-effort.
+5. **An empty `inboxes/` means the coordination never happened**, even when
+   teammates spawned.
+6. **Teammates don't inherit the lead's model.** Pin it or you don't know what you
+   ran.
+7. **"Do these workers need to talk to each other?"** is the whole decision, and
+   the answer is usually no.
+
+{/* TODO(verify: an eighth takeaway should come out of the measured results —
+    something about how large the phrasing effect actually is. Left out until
+    there are numbers to support it. */}
+
+---
+
+*Session identifiers here are changed. The `config.json` shown is real, from a
+session with the feature flag enabled and no teammates spawned, and the `jq`
+results quoted are from running those commands against it. Observed on Claude Code
+2.1.220 — Agent Teams is experimental and its behavior changes between releases.*
