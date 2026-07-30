@@ -165,11 +165,13 @@ Before touching any architecture, the cheap test is to put both machines on one
 network temporarily and re-run the benchmark. A threshold got written down first:
 900+ MB/s would confirm the gateway was the bottleneck.
 
-That number wasn't idle and it wasn't mine. It came out of the Claude session, as
-the output of a striped-parity read calculation once I'd said the array was RAID5
-— reads parallelise across the data disks, so the geometry puts the theoretical
-ceiling well above 10G. The conclusion drawn from it was explicit: the bottleneck
-will be the network, not the array. Writes were predicted at 300–500 MB/s.
+That number wasn't mine, and it predated anyone knowing what the array was. It
+came out of the Claude session early on: expect 900–1100 MB/s reads if everything
+is healthy. When I said the array was RAID5, the number didn't move — it acquired
+a justification. Reads parallelise across the data disks, so the geometry puts the
+theoretical ceiling well above 10G, and the conclusion was explicit: "The
+bottleneck will be the network, not the array." Writes were predicted at 300–500
+MB/s.
 
 Same network, Blackmagic Disk Speed Test, 5 GB:
 
@@ -180,11 +182,11 @@ Everything there clears the old gigabit ceiling comfortably, so putting them on
 one network was a real improvement. Nothing there is 900 MB/s, and the session
 called the diagnosis confirmed anyway on the strength of the 700 MB/s peak.
 
-The interesting part isn't that the bar got missed. It's that the prediction was
-wrong in the direction that mattered: sustained reads came in around a third of
-the calculated 900–1100, and writes below the predicted floor. A theoretical array
-ceiling is not a measured one, and it says the network will be your limit
-confidently enough to send you looking in the wrong place for an evening.
+The interesting part isn't that the bar got missed. It's that both predictions
+missed the entire range: reads were predicted at 900–1100 and every reading came in
+under 700, writes were predicted at 300–500 and every reading came in at 300 or
+below. A theoretical array ceiling is not a measured one, and it will tell you the
+network is your limit with more confidence than it has earned.
 
 Nor was the remaining shortfall the network. The obvious suspect for a fluctuating
 read range was the NAS's NVMe cache, which at two 2 TB drives is vastly larger
