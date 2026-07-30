@@ -1,426 +1,249 @@
 ---
 title: 'How to tell whether you actually got an agent team'
-description: "Claude decides whether to form a team, and the panel and spawn call look identical either way. The signals that tell you, and three that don't."
+description: "Teams and subagents share a panel and a spawn call. Four ways to check which you got, and the traps in each of them."
 pubDate: 2026-07-29
+updatedDate: 2026-07-30
 tags: ['claude']
-draft: true
-symptom: 'No way to tell whether Claude Code formed a real agent team or worked alone — the panel, the spawn call, and the tool name are identical either way'
-cause: 'The only record is a team config directory that is deleted when the session exits, and every obvious way to check it returns a false positive'
+draft: false
+symptom: 'Agents appeared in the panel and there was no way to tell whether a team had formed, whether they coordinated, or whether these were plain subagents'
+cause: 'The only live record is a config directory deleted when the session exits, and the obvious ways to read it return false positives'
 stack: ['Claude Code 2.1.220']
 ---
 
-Ask Claude Code to spawn an agent team and you will usually see agents appear in
-the panel below the prompt. That is not evidence that you got a team.
+Ask Claude Code for an agent team and you will usually see agents appear in the panel
+below the prompt. That is not evidence that you got one.
 
-Agent Teams and subagents are different features with different mechanics, and
-they render in the same panel. Which one you get is a decision the model makes,
-based on whether it judges your task complex enough to warrant a team. The docs
-are explicit about both halves of that, in the
-[agent teams documentation](https://code.claude.com/docs/en/agent-teams):
+Agent Teams and subagents are separate features spawned by the same `Agent` tool, and
+the [agent teams docs](https://code.claude.com/docs/en/agent-teams) are candid that
+"the panel alone doesn't confirm a team formed." That page also gives you the map: the
+`config.json` and `tasks` paths, the `inboxes/{agent-name}.json` path, the naming rule,
+that both are created at session startup, that the lead's entry carries the agent type
+`team-lead`, and that the config directory is removed when the session ends.
 
-> Claude may sometimes use subagents instead of creating a team. Subagents appear
-> in the same agent panel as teammates, so the panel alone doesn't confirm a team
-> formed. If Claude spawned subagents instead, ask again and explicitly request an
-> agent team.
+What it doesn't tell you is that the obvious ways to *read* that map are wrong — and one
+of the wrong answers is convincing enough that I believed it for a while.
 
-So the official advice is to ask again. What isn't documented anywhere I could
-find — not the docs, not the community guides, not the practitioner roundups — is
-how to know whether asking again worked.
-
-It is checkable. Team state gets written to disk.
-
-## The two things people conflate
-
-Most writing on this treats "agent teams" and "subagents" as one feature with two
-names. They aren't.
-
-|  | Subagents | Agent teams |
-|---|---|---|
-| Communication | Report back to the main agent only | Teammates message each other directly |
-| Coordination | Main agent manages all work | Shared task list, self-claimed |
-| Context | Own window; result returns to the caller | Own window; fully independent |
-| Token cost | Lower — results summarized back | Higher — each teammate is a separate instance |
-
-The practical difference is peer-to-peer messaging. A subagent cannot tell another
-subagent what it found; everything routes through the parent. Teammates can talk
-to each other, and that is the entire reason to pay for a team.
-
-Every one of those differences is invisible from where you're sitting. Beyond the
-shared panel, they're spawned by the same tool: in a run that produced a genuine
-three-teammate team, the session reported its spawn calls as
-`["Agent", "Agent", "Agent"]` — indistinguishable from spawning three ordinary
-subagents. So neither the panel nor the tool name tells you which one you got.
-
-Agent Teams is also still experimental and off by default. Nothing forms unless
-you enable it:
+Before any of it: nothing exists unless the feature is on. It's experimental and off by
+default.
 
 ```json
-{
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  }
-}
+{ "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" } }
 ```
 
-## Where the ground truth lives
+With that unset there is no directory to read, so every check below reports "no team" for
+a session that never had the feature available. Confirm the flag before concluding
+anything.
 
-With the flag set, a session writes:
-
-```
-~/.claude/teams/{team}/config.json      team membership
-~/.claude/teams/{team}/inboxes/*.json   mailboxes
-~/.claude/tasks/{team}/                 shared task list
-```
-
-`{team}` isn't something you pick. It's `session-` followed by the first eight
-characters of the lead's session ID, and that rule held on every team directory I
-looked at.
-
-What doesn't follow — and I got this wrong for a while — is that you can predict
-the directory ahead of time by passing `claude --session-id <uuid>`. You can't. In
-one run I set the session ID explicitly, got a transcript under exactly that ID,
-and the team registered under a completely different one that had no transcript at
-all. The team's `leadSessionId` is not necessarily the ID you asked for.
-
-So don't try to compute the path in advance. Identify it the way that actually
-works: list `~/.claude/teams/` before you start, and see which directory is new.
-The derivation rule is for reading a directory after the fact, not for guessing its
-name beforehand.
-
-## The check that doesn't work
-
-The obvious check is whether `~/.claude/teams/session-*/` exists. It's wrong.
-
-With the flag enabled that directory is created **at session startup, before any
-teammate exists**. This is the config from a session where I spawned nothing:
-
-```json
-{
-  "name": "session-a1b2c3d4",
-  "createdAt": 1750000000000,
-  "leadAgentId": "team-lead@session-a1b2c3d4",
-  "members": [
-    {
-      "agentId": "team-lead@session-a1b2c3d4",
-      "name": "team-lead",
-      "agentType": "team-lead",
-      "backendType": "in-process"
-    }
-  ]
-}
-```
-
-The directory exists. `config.json` exists. There is no team.
-
-## The check that also doesn't work
-
-Fine — count the members and exclude the lead:
+## Check 1: count the members, while the session lives
 
 ```bash
-jq '[.members[] | select(.agentId != .leadAgentId)] | length' \
-  ~/.claude/teams/session-a1b2c3d4/config.json
+for d in ~/.claude/teams/session-*/; do
+  jq -r --arg dir "$(basename "$d")" '
+    "\($dir)  teammates=\([.members[] | select(.agentType != "team-lead")] | length)  dirs=\([.members[].cwd] | unique | join(" + "))"
+  ' "$d/config.json" 2>/dev/null
+done
 ```
 
-Run that against the config above and it returns `1`. There are no teammates.
+```
+session-a1b2c3d4  teammates=6  dirs=/Users/me/code/other-project
+session-b2c3d4e5  teammates=0  dirs=/Users/me/code/something-else
+session-c3d4e5f6  teammates=6  dirs=/Users/me/code/this-project + /Users/me/code/this-project/.claude/worktrees/wip
+```
 
-Inside the `.members[]` pipeline, `.` is a member object, so `.leadAgentId` is
-`null` rather than the lead's ID. The comparison becomes `.agentId != null`, which
-is true for everyone, so the lead counts itself as a teammate. Every team-less
-session reports exactly one — plausible enough to never look twice at.
+Above zero is a real team. Zero means you got something else, whatever the panel showed
+you.
 
-## The check that works
+That glob covers every session on the machine, and if you run this feature you probably
+have several open — so two rows can both show teammates and only one is yours. The `cwd`
+values narrow it down, but note the third row: `cwd` is recorded per member, and the lead's
+can differ from the teammates'. That happens if the session moved, as it does in a git
+worktree, and it means matching your `pwd` against a single member is unreliable. For
+certainty, read `leadSessionId` from the top level of `config.json` and compare it against
+the session you care about.
 
-Bind the lead before iterating:
+Two caveats on the count itself, both found the hard way. Members are not removed when
+they die — I lost teammates to API errors mid-task and they kept appearing afterwards —
+and the count includes teammates that finished long ago. This tells you a team *formed*,
+not that one is working now.
+
+## Check 2: the transcript, after the session is gone
+
+The config directory is deleted when the session exits, which is the most likely reason
+you can't answer this question at all. Transcripts persist. Find yours:
 
 ```bash
-jq '.leadAgentId as $lead
-    | [.members[] | select(.agentId != $lead)] | length' \
-  ~/.claude/teams/session-a1b2c3d4/config.json
+ls -lt ~/.claude/projects/"$(pwd | sed 's|[/.]|-|g')"/*.jsonl | head -5
 ```
 
-That returns `0`. Or key off the type, which is shorter and reads better:
+The project directory is your working directory with `/` and `.` both replaced by `-`.
+
+**Don't just take the newest.** If you're asking from a Claude Code session, the newest is
+the session you're sitting in — which contains none of the calls you're looking for, so
+you'd conclude no team formed. Pick the one whose timestamp matches the session that ended.
+
+Then, against that file:
 
 ```bash
-jq '[.members[] | select(.agentType != "team-lead")] | length' \
-  ~/.claude/teams/session-a1b2c3d4/config.json
+jq -r 'select(.message.content | type == "array") | .message.content[]
+       | select(.type == "tool_use" and .name == "Agent")
+       | if .input.name then "teammate: \(.input.name)" else "subagent (unnamed)" end' \
+  ~/.claude/projects/<slug>/<session-id>.jsonl
 ```
 
-Greater than zero means a team formed. Zero means you got something else,
-whatever the panel showed you.
+Against a session whose team directory was deleted hours earlier, this still recovers the
+roster:
 
-A second signal worth having: `inboxes/` is created lazily. If it never appears, no
-agent ever messaged another — so even when teammates did spawn, the peer-to-peer
-coordination you were paying for never actually happened.
+```
+teammate: sanitizer
+teammate: editor
+teammate: schema
+```
 
-Two things that are *not* signals, both of which I assumed were before checking:
+**The trap here is the bridge between the two checks.** You cannot always get from a
+directory name to a transcript, and the rule turns out to be conditional. The docs say the
+directory is `session-` plus the first eight characters of the session ID. In all three of
+my scripted runs — where I passed `--session-id` myself — that was false: one team
+directory was `session-f64255bd` while the transcript holding the `Agent` calls was
+`065d4d3a`, and the other two mismatched the same way. In all three sessions I launched
+normally, `leadSessionId` matched the directory name exactly.
 
-**Mailbox contents don't measure anything.** Messages are delivered automatically
-and drained as they're consumed, so the files are usually empty when you look. In a
-run that produced a real three-teammate team, all four inboxes were empty by the end
-while the session reported eleven messages exchanged. The *existence* of the files
-tells you the messaging system was engaged; their contents at any instant tell you
-nothing about volume.
+So the documented rule holds unless you supply the session ID yourself, which is worth
+knowing in both directions: on a normal launch the directory name *is* a reliable handle,
+and under `--session-id` it isn't.
 
-**An empty shared task list doesn't mean no team.** The docs describe the task
-list as core coordination machinery, so I expected `~/.claude/tasks/{team}/` to
-fill up. In a real three-teammate team it stayed completely empty, while the
-mailboxes were live. Teammates coordinated by messaging each other and never
-created a single task. So absence of task files proves nothing either way.
+## Check 3: whether they coordinated at all
 
-## The better instrument: hooks
+A team can form and still not coordinate. Different question.
 
-Everything above reads state off the disk, which works but is awkward — you're
-racing a directory that gets deleted. There's a cleaner way, and it's the one I'd
-reach for now.
+`inboxes/` is created lazily, per recipient, on first delivery — so point this at the one
+directory you identified in check 1 rather than globbing, or another session's mailboxes
+will answer for yours:
 
-Register a `PostToolUse` hook and it fires *inside teammate sessions too*, carrying
-`agent_id` and `agent_type`. Register `TeammateIdle` and it fires only for real
-agent-team teammates. Between them you get a three-way answer without touching
-`~/.claude/teams/` at all:
+```bash
+ls ~/.claude/teams/session-c3d4e5f6/inboxes/ 2>/dev/null || echo "nothing has messaged"
+```
+
+If it's empty or missing, no agent messaged another. If files exist, messaging happened —
+but that's all you get, because they're drained as messages are delivered and are usually
+empty when you look. Existence is a boolean, not a volume. And it's per recipient, not per
+member: the session I'm writing from has six teammates and four mailboxes, because only
+four have been written to.
+
+The shared task list turned out to be no signal at all. Given how central it is to the
+documentation I expected `~/.claude/tasks/{team}/` to fill up. In a real three-teammate
+team it stayed empty, and the `TaskCreated` and `TaskCompleted` hooks — armed for that run —
+fired zero times. They coordinated entirely by messaging and never created a task.
+
+## Check 4: a hook, armed before the run
+
+The three checks above read state after the fact. To know in advance, instrument first.
+
+The [hooks reference](https://code.claude.com/docs/en/hooks) documents the pieces:
+`PostToolUse` carries an `agent_id` that is "present only when the hook fires inside a
+subagent call," `TeammateIdle` fires when an agent-team teammate is about to go idle,
+`PostToolUse` fires only on success while `PostToolUseFailure` handles failures, and exit 2
+means different things per event — it feeds stderr back to the model on `PostToolUse`, and
+on `TeammateIdle` it prevents the teammate going idle. So the logger must always exit 0, or
+it changes the behaviour it's measuring:
+
+```bash
+#!/usr/bin/env bash
+# log-hook.sh
+INPUT="$(cat)"
+printf '%s' "$INPUT" | jq -c '{
+  event: .hook_event_name, tool: .tool_name,
+  agent_id: .agent_id, agent_type: .agent_type
+}' >> "${LAB_RUN_LOG:-/tmp/agent-teams.jsonl}"
+exit 0
+```
+
+Register it for `PostToolUse` and `TeammateIdle` and pass it per-run with `--settings`, so
+your usual config is untouched.
+
+**The undocumented part, which is what makes this work.** The docs define `agent_id` as a
+*subagent* identifier, and teammates are explicitly not subagents. But `agent_id` is
+populated for agent-team teammates too — mine appeared as `asanitizer-…`, `aeditor-…`,
+`aschema-…`. That gives you a three-way answer nothing else provides:
 
 - a `TeammateIdle` event → a team existed
 - only `PostToolUse` events carrying an `agent_id` → subagents
 - neither → the session did the work itself
 
-You can pass the hooks per-run with `--settings`, so nothing in your normal config
-changes. A logger must always exit 0, by the way: exit 2 on `PostToolUse` feeds
-stderr back to the model, and on `TeammateIdle` it *blocks the teammate from going
-idle*. A logger that changed the behavior it was measuring would be worse than no
-logger.
-
-This is also how to count messages, since mailbox contents won't. From the team
-above:
-
-```
-7  teammate  SendMessage      <- teammates messaging each other
-3  lead      SendMessage
-3  lead      Agent            <- the three teammate spawns
-22 teammate  Bash
-17 teammate  Read
-```
-
-Ten `SendMessage` calls, seven of them teammate-to-teammate, so the peer-to-peer
-coordination genuinely happened rather than everything funnelling through the lead.
-The session's own report said eleven. Close, off by one, and worth noting that
-`PostToolUse` only fires on success — a failed call wouldn't appear here unless you
-also register `PostToolUseFailure`. So a small discrepancy like this is as likely to
-be my instrumentation as its arithmetic.
-
-I found the disk method first and the hook method second, and I'd recommend the
-opposite order. Hooks caught a team that my disk check had confidently scored as
-"no team" — because I was watching the wrong directory.
-
-## The trap that will cost you an afternoon
-
-The team config directory is deleted when the session exits.
-
-Check afterwards and you find nothing, which reads exactly like "no team was ever
-created." The task list under `~/.claude/tasks/` does persist, but it records work
-items rather than membership, so it can't tell you who was on the team.
-
-To know what happened you have to look while the session is alive. For a one-off,
-run the `jq` above from another terminal. For anything repeatable, poll it —
-snapshot `config.json` on an interval and keep the copies.
-
-One caveat on "deleted at exit": I found a months-old team directory still sitting
-in `~/.claude/teams/`, presumably from a session that crashed rather than exited
-cleanly. Cleanup is best-effort, so a stale directory is one more way the
-existence check misleads you.
-
-## What the measurements showed
-
-Two runs survived scrutiny. That is a small number and I'm not going to dress it
-up as a rate — but they answer a question that matters, and they answer it the same
-way twice.
-
-Both asked explicitly for three named teammates as an agent team. The only thing
-that differed was whether the work suited one. Lead on Opus 5, teammate model
-unspecified, Claude Code 2.1.220.
-
-| Task | Result | Tool calls | Reported itself as |
-|---|---|---|---|
-| Three drafts, three independent review lenses | **real team**, 3 teammates | 62 | `agent_team` ✓ |
-| One file, three adjacent frontmatter fields | **solo** | 4 | `solo` ✓ |
-
-The first formed a genuine team: three teammates, four mailboxes, ten `SendMessage`
-calls with seven of them teammate-to-teammate. The second declined, and this is the
-part worth quoting, because it volunteered the reasoning without being asked:
-
-> All three values live in the same ten-line frontmatter block of one file, so a
-> single read answered all three questions; three teammates would each have opened
-> the same file to report one adjacent line, and the spawn and collation overhead
-> would have exceeded the work itself.
-
-So **an explicit request is necessary but not sufficient.** Asking plainly is what
-makes a team possible, and the suitability judgment still sits in front of it. In
-the case I tested, that judgment was correct and it announced itself rather than
-quietly doing something else.
-
-That's reassuring in a way I didn't expect going in. The worry with "just ask
-explicitly" as a habit is that you'd force three instances onto trivial work and
-pay 3× for it. It didn't. Four tool calls, and it told me why.
-
-Both sessions also reported their own mechanism accurately — 2 of 2. Which is worth
-holding alongside the earlier section: what it did, it reported correctly. Where its
-instructions came from, it got wrong twice.
-
-### What I did not measure
-
-**Whether permissive phrasing alone produces a team.** I ran it, and had to throw
-the run away. The permissive prompt never asks for delegation, which puts it
-directly under the standing instruction described above — so the lead going solo
-tells you it followed an instruction, not what it would have chosen. That condition
-isn't testable on this build without neutralising a string compiled into the binary.
-
-**Anything about print mode.** `claude -p` never produced a team directory in any
-run, but every one of those runs was watching a path that never existed, so I have
-no usable evidence either way and won't guess.
-
-## How to ask so that it happens
-
-The shape that holds up is closer to a work order than a request. Name the
-mechanism, name the workers, pin the model, and say what the lead should do while
-they run:
-
-```text
-Spawn three teammates as an agent team to review PR #142.
-Use Sonnet 5 for each teammate.
-
-  - teammate "security": auth and input validation
-  - teammate "perf": query patterns and hot paths
-  - teammate "tests": coverage of the changed lines
-
-Have them message each other directly if one finds something that
-changes another's read. Wait for all three to finish before you
-synthesize. Do not start reviewing yourself while they work.
-```
-
-Four things in there are load-bearing, and each maps to a documented failure:
-
-- **"as an agent team"** names the feature, so it isn't inferred from complexity.
-- **Named teammates** matter because the lead assigns names at spawn, and you need
-  them to message anyone directly later.
-- **An explicit model** matters because teammates do *not* inherit the lead's
-  model. Without it they use the *Default teammate model* from `/config`, which is
-  probably not what you assumed you were running.
-- **"Wait… do not start reviewing yourself"** addresses the documented failure of a
-  lead that quietly does the work instead of delegating it.
-
-## When you ask correctly and still get nothing
-
-You can do all of that and still get no team. The reason may be an instruction
-that isn't in any file you can read.
-
-I hit this. A session declined to delegate and explained itself by citing a rule
-in this project's `CLAUDE.md`. I grepped the file. No such rule — `CLAUDE.md` has
-ten sections and zero matches for `agent`, `subagent`, `spawn`, or `delegate`. Not
-in a user-level `CLAUDE.md` either, nor in any `settings.json`, nor in a plugin.
-
-It was real anyway. It ships inside the Claude Code binary:
-
-```js
-ttp = ["Do not call the AgentTool unless the user requested it",
-       "Do not use workflows or deep-research unless the user requested it"].join("\n")
-```
-
-So there's a standing instruction not to delegate unless you ask — which is
-consistent with the documented advice to ask explicitly, and also means the
-permissive case isn't the model exercising judgment at all. It's following orders.
-Note the neighbouring fragments in that module are conditionally assembled, so this
-one is probably gated too; I couldn't confirm which sessions get it.
-
-To go looking yourself, it's a 245 MB Mach-O executable, so:
-
 ```bash
-strings -n 8 "$(readlink -f "$(which claude)")" | grep -F "AgentTool"
+jq -r '"\(if .agent_id then "delegated" else "lead" end)\t\(.tool // .event)"' \
+  /tmp/agent-teams.jsonl | sort | uniq -c | sort -rn
 ```
 
-**Use a positive control.** This is where I embarrassed myself. My first search was
-a plain `grep -r` over the install directory, which returned nothing, and I
-reported the strings as absent. Plain `grep` on a binary prints `Binary file
-matches` or stays silent rather than printing lines, so the null result carried no
-information at all. Proof:
-
 ```
-                grep -rl (wrong)   grep -ac (right)
-PostToolUse     0 files            91
-subagent_type   0 files            46
+  22 delegated	Bash
+  17 delegated	Read
+  10 lead	TeammateIdle
+   7 delegated	SendMessage
+   4 lead	Bash
 ```
 
-Both of those are unquestionably in there. My method reported nothing for them too.
-Any search that can't find a string you *know* is present hasn't told you anything
-about the string you're asking about.
+Read the `TeammateIdle` rows carefully: they say `lead`. That isn't a contradiction — the
+event concerns a teammate but is delivered to the lead, so it carries no `agent_id`. Count
+the event, not the label.
 
-**And don't ask the model where its constraints come from.** Pushed on the false
-citation, the same session was straightforward about it: it can't inspect its own
-system prompt as retrievable text, so it cannot tell from the inside whether it's
-reciting or reconstructing. Its sense of *what* it was forbidden to do turned out
-accurate to the word. Its sense of *where* that came from was wrong twice. Treat
-the first as a signal and the second as a guess, however specific the file and line
-number look.
+Note what this log can't tell you. It deliberately drops tool payloads, so seven teammate
+`SendMessage` calls are equally consistent with seven teammate-to-lead reports. It shows
+messaging happened, not who talked to whom.
 
-## When it's worth wanting one
+Worth running alongside check 1 rather than instead of it. Hooks caught a real team that my
+directory check had confidently scored as "no team," because I was watching a path that
+never existed — one instrument was wrong and the other wasn't.
 
-The Z result generalises about as far as you'd expect. Teams earn their cost on
-read-heavy work with genuinely independent paths — reviewing along separate axes, or
-chasing competing hypotheses so the theories get argued against each other instead
-of explored in sequence. That last case is the strongest, because one agent working
-alone tends to find a single plausible explanation and stop looking.
+## What actually makes a teammate
 
-They're a poor fit for write-heavy work: two teammates editing one file overwrite
-each other, which is the most common complaint from people running this in anger.
-Sequential and dependency-heavy work favour a single session or subagents.
+Not the phrasing, and not a separate tool. Both mechanisms use `Agent`; a teammate is one
+spawned **with a `name`**, which is what makes it addressable for messaging.
 
-And subagents are the honest default. Each teammate is a separate instance with its
-own context, so tokens scale with teammate count rather than being amortised the way
-a subagent's summarised result is. The coordination machinery — task list, mailboxes,
-claim locking — only pays off if the workers need to talk to each other. Agent Teams
-is also still experimental, with documented limitations around session resumption,
-task-status lag, and shutdown, which matters more for a habit than for an experiment.
+Check 2 demonstrates this on its own. Run against the session I'm writing from, it prints:
 
-One question settles it: **do these workers need to talk to each other?** If not,
-use subagents. Usually they don't.
+```
+teammate: operator-read
+teammate: skeptic-read
+subagent (unnamed)
+teammate: operator-two
+teammate: skeptic-two
+subagent (unnamed)
+teammate: operator-three
+teammate: operator-four
+```
+
+Six named spawns and two unnamed ones. That session's `config.json` lists exactly six
+members — the same six names. Neither unnamed spawn appears anywhere in it. Named spawns
+join the team; unnamed ones run, return their result, and are never members.
+
+They also behave differently once running, and this will bite you: the unnamed spawns'
+final text came back as a return value. The named ones went idle and sent idle
+notifications carrying no result at all. On more than one occasion a teammate finished good
+work that never reached me — and at least once its `SendMessage` reported success without
+arriving, so I can't tell you whether that's a delivery problem or something else. Either
+way the practical answer is the same: **don't put anything you need in the message
+channel.** Have teammates write to a file and treat the message as a receipt.
 
 ## Takeaways
 
-1. **Nothing you can see tells you what you got.** Subagents and teammates share
-   the same panel *and* the same `Agent` spawn call.
-2. **The team directory existing is a false positive.** It's created at startup
-   with the flag on, before any teammate exists.
-3. **So is the obvious `jq` one-liner.** Referencing `.leadAgentId` from inside
-   `.members[]` makes every team-less session report one teammate.
-4. **Don't predict the directory name — detect it.** It's derived from an internal
-   session ID, not the one you pass to `--session-id`. Diff `~/.claude/teams/`
-   before and after instead.
-5. **Check while the session is alive.** The config directory is deleted at exit,
-   and cleanup after a crash is best-effort.
-6. **`inboxes/` existing is the messaging signal; its contents aren't.** They drain
-   as messages are delivered. Count `SendMessage` with a hook instead.
-7. **An empty task list means nothing.** A real team coordinated entirely by
-   mailbox and created zero tasks.
-8. **Prefer hooks to the disk check.** `TeammateIdle` fires only for real teammates,
-   `PostToolUse` carries `agent_id` — and neither depends on finding the right
-   directory before it's deleted.
-9. **Teammates don't inherit the lead's model.** Pin it or you don't know what you
-   ran.
-10. **The thing suppressing delegation may not be in any file you can grep.** It
-    can ship inside the binary — and if you ask the model where the rule came
-    from, expect a confident citation to a file that doesn't contain it. What it
-    thinks it's forbidden to do is reliable; where it thinks that came from isn't.
-11. **A search you haven't positive-controlled tells you nothing.** My `grep` over
-    a 245 MB binary reported the strings absent. It reported `PostToolUse` absent
-    too, and there are 91 of those.
-12. **"Do these workers need to talk to each other?"** is the whole decision, and
-    the answer is usually no.
-
-13. **An explicit request is necessary but not sufficient.** It's what makes a team
-    possible; the suitability judgment still gates it, and on a task that didn't
-    warrant one it declined and said so. You probably can't over-ask your way into
-    wasting 3× tokens.
+1. **Confirm the flag first.** With `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` unset, every
+   check here says "no team" about a session that never had the option.
+2. **Both obvious reads are false positives** — the directory exists from startup, and the
+   natural `jq` counts the lead as a teammate.
+3. **A `name` on the spawn is what makes a teammate**, and named spawns return nothing;
+   they go idle. Have them write to a file.
+4. **Scope every check to one session.** The team directory, the mailboxes and the
+   transcripts all live in per-machine globs, and the newest is rarely the one you want.
 
 ---
 
-*Session identifiers here are changed. The `config.json` shown is real, from a
-session with the feature flag enabled and no teammates spawned, and the `jq`
-results quoted are from running those commands against it. Observed on Claude Code
-2.1.220 — Agent Teams is experimental and its behavior changes between releases.*
+*Session identifiers and paths are changed. Quoted output is otherwise captured as run:
+the member listings, the `jq` results, the hook tallies, and the transcript output. Where
+the documentation states a fact — the paths, the naming rule, startup creation, the hook
+fields and their exit-code semantics — it's credited above rather than presented as a
+discovery.*
+
+*I also ran a small experiment on whether asking explicitly changes what you get. It isn't
+here: two adversarial reviewers showed the prompts differed in more than the one variable I
+claimed, so the comparison doesn't support the conclusion I drew. That's a follow-up, run
+properly, or not at all.*

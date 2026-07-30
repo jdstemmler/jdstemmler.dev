@@ -72,6 +72,11 @@ Project write-ups live in `src/content/projects/*.mdx` (schema in `src/content.c
 - **Never invent command output, version numbers, timings, or benchmark figures.** If a value isn't in the source notes, write `TODO(verify)` and move on.
 - **Never write post prose from scratch.** Jayson supplies the messy account; you structure it and mark the gaps.
 - Every command shown is a command that was actually run, with its real output.
+- **Never present a source's facts as your own discovery.** If a linked page states
+  something, say it states it. Watch for the asymmetry that happens by default:
+  crediting a source for *failure modes* (which reads as thorough) while restating its
+  *facts* in first-person discovery voice. Before claiming anything is undocumented,
+  read the documentation you're linking to — that claim has to survive one click.
 
 ## Security
 
@@ -87,9 +92,17 @@ Project write-ups live in `src/content/projects/*.mdx` (schema in `src/content.c
 
 ## Tooling
 
-`.claude/` holds two skills and two hooks:
+`.claude/` holds three skills and two hooks:
 
 - `new-post` — brain-dump in, valid MDX skeleton with `TODO(verify)` markers out.
 - `verify-post` — schema validation, leftover `TODO(verify)`, description length, sanitization check. Run before every publish.
+- `review-post` — adversarial fresh-eyes review by two subagent readers: source-restatement audit, claim classification, figure reproduction, prose-tell detection. **Run before opening any PR with a new post.**
+
+**Gate order: `verify-post`, then `review-post`, then open the PR.** The two catch
+disjoint problems and passing one says nothing about the other. `verify-post` is
+mechanical — it has passed a post that claimed something was undocumented while
+linking to its documentation, reproduced a vendor table as original analysis, and
+printed a figure that didn't reproduce. Only readers catch those, and only before
+publication is it cheap.
 - Content-safety hook — blocks commits containing RFC 1918 addresses, real hostnames, or VLAN IDs in `src/content/`. If it fires, fix the content; don't bypass it.
 - Build-check hook — `astro check` after edits to `src/`.
