@@ -204,29 +204,15 @@ assume.
 The proper fix — NAS onto its own storage network, inter-VLAN routing handed to
 the switch — is not done. I have a plan and no deployment.
 
-Which makes the honest headline that the cheap fix was good enough to live with.
-Both machines still share a network, and that's worth pricing rather than
+What did ship is a DNS record for the NAS and a verified resolution path — two
+`dig` runs through both resolvers — and nothing had complained about it by the
+time I came back days later. Nothing points at that name yet, though; repointing
+the consumers is on the list of things I deliberately haven't done.
+
+So the honest headline is that the cheap fix was good enough to live with. Both
+machines still share a network, and that's worth pricing rather than
 celebrating. A storage array and a workstation sharing one network is exactly the
 boundary I just finished arguing against, and mine is still eroded.
-
-The other thing that came out of the session was a sequencing argument, and I want
-to be exact about its status, because it's advice rather than a report. What
-shipped is a DNS record for the NAS and a verified resolution path — two `dig`
-runs through both resolvers — and nothing had complained about it by the time I
-came back days later. Nothing points at that name yet. Repointing the consumers is
-on the list of things I deliberately haven't done.
-
-The plan originally had the hostname switch last, as a nice-to-have: once
-everything's moved, stop using addresses so the next change is easier. That's the
-wrong position for it, because it makes the cutover change the NAS's address and
-every consumer's configuration at once, so anything that breaks afterwards is
-ambiguous between a routing fault and a stale mount.
-
-Front-loading it removes the ambiguity. Point every consumer at the name while the
-address is still the old one, verify each resolves by name, then power-cycle it and
-verify again — a mount that works until something restarts three weeks later isn't
-done. Only then move the box: one DNS record changes, and if something breaks then,
-it broke because it wasn't going through DNS like you thought.
 
 ## Takeaways
 
