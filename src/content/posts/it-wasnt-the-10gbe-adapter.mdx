@@ -5,43 +5,38 @@ pubDate: 2026-07-30
 tags: ['homelab', 'networking']
 draft: true
 symptom: 'Transfers to the NAS ran at gigabit speeds over a link the Mac reported as 10Gbase-T, full duplex, active'
-cause: 'The two machines were on different subnets, so every packet went through the gateway instead of staying on the switch — because I had filed the NAS on the management network years earlier'
+cause: 'The two machines were on different subnets, so every packet went through the gateway instead of staying on the switch — because I had filed the NAS on the management network when I built it'
 stack: []
 ---
 
-If you do networking for a living, you already know what's wrong here and the
-second code block will bore you. I don't, and it cost me an evening, a wrong
-hypothesis, and very nearly the price of a replacement adapter. So this is the
-whole path rather than the answer, including the part where I confirmed a
-diagnosis I hadn't actually confirmed.
+If you do networking for a living you'll have this diagnosed by the second code
+block. I don't, and it cost me an evening. If you're holding a 10G adapter and
+wondering whether to send it back, the command worth running before you do is in
+the third section, and in my case it saved the adapter.
 
-I bought a Thunderbolt 10G adapter to get a Mac mini talking to a UNAS Pro at
-something better than gigabit. I got gigabit.
+I bought a Thunderbolt 10G adapter to get a Mac mini talking to a UNAS Pro faster
+than gigabit. I got gigabit.
 
-Everything I knew about these adapters pointed at the adapter. Thermal
-throttling, driver problems, chipset lottery. It was the newest and least
-trusted thing in the path and I was ready to send it back.
+Everything I knew about these adapters pointed at the adapter: thermal
+throttling, driver problems, chipset lottery. It was the newest and least trusted
+thing in the path, and it's the part you'll be tempted to return.
 
-It was fine. The Mac and the NAS were on different subnets, so every packet
-between two machines hanging off the same switch was going up to the gateway to
-be routed and coming back down again. They were on different subnets because of
-a filing decision I'd made years earlier, for a reason that sounds principled
-and isn't.
+It wasn't the adapter. The Mac and the NAS were on different subnets, so every
+packet between two machines hanging off the same switch was going up to the
+gateway to be routed and coming back down again. Putting them on one network took
+the same benchmark from gigabit to 200–300 MB/s writes and 300–700 MB/s reads —
+two to three times what I had, on the same hardware, with the adapter I'd nearly
+boxed up.
 
-## What I actually measured, which is less than I'd like
+## What I had to work with, which is less than I'd like
 
-Here is my entire before-measurement: I said "I'm seeing gigabit speeds."
+My entire before-measurement is that I said "I'm seeing gigabit speeds." No
+figure, no read/write split, and no note on whether the number sat flat or decayed
+over the length of a transfer. That last one is what I'd want back: a flat ceiling
+and a decaying one point at different classes of problem, and I threw the
+distinction away before I started.
 
-That's it. No throughput figure, no read/write split, no note on whether the
-number sat flat or decayed over the length of a transfer. I know it was in the
-gigabit neighbourhood because that's what I said at the time, and I can't tell
-you anything more precise than that, because I didn't write it down.
-
-That matters more than it looks, because a flat ceiling and a decaying one point
-at different classes of problem, and I threw the distinction away before I
-started.
-
-The one thing I did check was the link itself:
+The one thing I did check was the link:
 
 ```
 ❯ ifconfig en18
@@ -52,22 +47,23 @@ en18: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
 	status: active
 ```
 
-`10Gbase-T`, full duplex, active. The physical layer had finished negotiating
-and it had negotiated what I paid for. Anything slow after that point is
-happening above the link, which is the useful thing this check buys you: it
-splits "the hardware can't" from "the path won't."
+`en18` is where my adapter landed; yours will be a different number, and
+`networksetup -listallhardwareports` maps hardware to interface names if you
+don't know which is which.
 
-The switch end I only checked after the fact: the Mac is on one of the switch's
-10G ports. What I never did was look at the speed the controller reported that
-port negotiating, at the time or since — which is the check I'd tell you to run
-and can't claim I ran.
+`10Gbase-T`, full duplex, active. That rules out the cheap, common failure —
+negotiation, where a bad cable or a flaky port drops you to 1G and the readout
+says so. What it does **not** rule out is a dirty link: 10GBASE-T over marginal
+copper will negotiate at 10G, come up `active`, and then throw errors under load
+that collapse throughput while this output stays perfect. The split I wanted here
+needs the interface's error counters, and I never pulled them.
 
 ## The evidence turned up while I was testing the wrong theory
 
-The leading theory wasn't the dongle by this point. It was that the traffic
-wasn't on the dongle at all. The mini has a built-in 1G port, and if that was
-also plugged in, macOS could plausibly have been sending storage traffic out the
-slow one. So I asked which interface the traffic actually used:
+The leading theory by this point wasn't the dongle. It was that the traffic
+wasn't on the dongle at all: the mini has a built-in 1G port, and if that was
+also plugged in, macOS could have been sending storage traffic out the slow one.
+So I went looking for which interface the traffic used.
 
 ```
 route get 198.51.100.10
@@ -80,116 +76,158 @@ destination: nas.example.com
        0         0         0         6         8         0      1500         0
 ```
 
-`interface: en18` answered the question I asked. The traffic was on the 10G
-adapter, and the theory I'd run the command for was dead.
+`interface: en18` answered the question I asked. The answer to the question I
+hadn't asked is two lines above it: `gateway:` is populated with the router and
+`flags:` contains `GATEWAY`, so the destination isn't on-link. Read that against
+the `inet` line from `ifconfig` and the two addresses sit in different `/24`s.
 
-The answer to the question I hadn't asked is two lines above it. `gateway:` is
-populated with the router, and `flags:` contains `GATEWAY`. The destination
-isn't on-link. Read that against the `inet` line from `ifconfig` and the two
-addresses sit in different `/24`s.
-
-So the path was never Mac to switch to NAS. It was Mac, switch, gateway, switch,
+The path was never Mac to switch to NAS. It was Mac, switch, gateway, switch,
 NAS, for every packet.
 
-Two things I'd do differently: run the diagnostic even when you expect it to
-exonerate your suspect, and read the whole output instead of the field you asked
-for. The line that mattered was on screen the first time I looked at it.
+I should be straight about who spotted that, because it's the whole lesson. I
+pasted both blocks into a Claude Code session without comment, having read the
+one field I went looking for. Claude read the same output and opened its next
+message with "OH. There it is." The line that mattered was on my screen the first
+time I looked at it, and I skipped it because I was checking a different theory.
+The rest of the session ran the same way — me pulling data, Claude reading it
+back — which is also how the camera post on this site went.
 
-## What that proves, and what it doesn't
+On Linux, `ip route get <destination>` prints the same two tells in a different
+shape.
+
+## What this proves, and what it doesn't
 
 It proves the path is routed. It does not prove the routed path is what was slow.
 
-I skipped straight past that distinction — concluded the gateway was the
-bottleneck, then designed the test that would show it. Wrong order, and it set
-up the mistake two sections down.
+It also doesn't kill the theory I ran the command for, and I said it did for
+longer than I should have. `route get` is a control-plane lookup: it tells you
+where a *new* connection to that address would go. It tells you nothing about
+where an established SMB session already went. A mount that came up while only
+the 1G port was live stays bound to that interface until something remounts it,
+and `route get` will print `en18` the whole time. I never established whether
+that built-in port was even connected.
 
-I still can't tell you how fast that gateway forwards between subnets, because I
-never measured it, and I never checked whether IDS/IPS was enabled either. Deep
-packet inspection on the forwarding path is the usual explanation for a gateway
-capping well below its rated throughput, so I can't separate a forwarding limit
-from an inspection tax. "The router was in the path, and it shouldn't have been"
-is the part I have evidence for.
+Which matters, because of what the two explanations predict. A session pinned to a
+1G interface caps at *exactly* gigabit, which is the symptom. A gateway out of
+forwarding headroom caps wherever its CPU gives out, which is an arbitrary number
+that happened to look like gigabit.
+
+And the test that confirmed the diagnosis can't separate them: moving both
+machines onto one network removes the routed path, but it also changes the Mac's
+address and forces the share to be remounted, which is the exact remedy for a
+pinned session. One move, two variables.
+
+I also can't tell you how fast that gateway forwards between subnets, or whether
+IDS/IPS was on — the common explanation in UniFi circles is the inspection stack
+taxing the forwarding path, and I tested none of it. I have a path, not a
+mechanism.
+
+## If `route get` comes back clean
+
+If `gateway:` is empty and there's no `GATEWAY` flag, your two machines are
+already talking over the switch and none of the above is your problem. What I
+learned later is the other half of the answer, and it's the part I'd have wanted
+first: 10G to a spinning array is not 1 GB/s.
+
+On my hardware, roughly 300 MB/s turned out to be the array's own read speed,
+with bursts to 700 when the cache happened to be serving. So if you're on one
+subnet and stuck well under line rate, the candidates are your disks, a dirty
+link showing up in the error counters, or a mount older than your current
+interface layout. Line rate to a NAS full of spinning disks was never the number
+to expect — 200–400 MB/s is the win.
 
 ## Why the NAS was somewhere stupid
 
-When I set the network up, I had the idea that it's a UniFi device, so all UniFi
-hardware should go on the management network. That doesn't really hold up.
-
-A management network is for managing infrastructure: switch consoles, access
-point control planes. The NAS is a server that happens to be made by the same
-vendor as the switch, and its data plane has no more business on the control
-plane than the Mac's does.
+When I set the network up I had the idea that it's a UniFi device, so all UniFi
+hardware should go on the management network. That doesn't hold. A management
+network is for managing infrastructure: switch consoles, access point control
+planes. The NAS is a server that happens to be made by the same vendor as the
+switch, and its data plane has no more business on the control plane than the
+Mac's does.
 
 The filing decision came with a trap as well. UniFi can hand a network's
 inter-VLAN routing to an L3-capable switch instead of the gateway, which is the
 architecturally correct fix here; Ubiquiti's
 [Layer 3 Routing](https://help.ui.com/hc/en-us/articles/360042281174-Layer-3-Routing)
 article describes it as "setting the Router option on a new or existing Virtual
-Network to the UniFi Switch."
+Network to the UniFi Switch." It documents two costs worth knowing before you
+plan around it: "Traffic Identification and features that rely on it are not
+supported on networks managed by an L3 switch," and enabling it auto-creates a
+transit network on a VLAN ID that the same page says cannot be changed.
 
-Note the words *Virtual Network*. When I looked, the Default network gave me no
-way to select the switch. I can't tell you that's a documented restriction,
-because I went and checked: the Default network isn't mentioned in that article
-at all, and nothing on Ubiquiti's help site says it's excluded — or that it's
-included. So take it as something I hit on my own controller rather than a rule.
-If your storage lives on the Default network, confirm you can delegate its
-routing before you plan a migration that assumes you can.
+Note the words *Virtual Network*. On my controller the Default network offered me
+no way to select the switch, and that restriction isn't documented anywhere — I
+pulled all 448 English articles off Ubiquiti's help centre through its API and
+grepped the corpus rather than trusting a search box. Nothing says the Default
+network is excluded, or that it's included. So this is something I hit, not a rule
+Ubiquiti states. If your storage lives there, confirm you can delegate its routing
+before planning a migration that assumes you can.
 
-There's a documented cost if you can: "Traffic Identification and features that
-rely on it are not supported on networks managed by an L3 switch." You buy
-hardware forwarding and give up the gateway's view of what that traffic is.
+## The confirmation, and why the bar was wrong
 
-## The confirmation, and the bar it didn't clear
+Before touching any architecture, the cheap test is to put both machines on one
+network temporarily and re-run the benchmark — either end can move. A threshold
+got written down first: 900+ MB/s would confirm the gateway was the bottleneck.
+That number came from the Claude session, not from me, and neither of us had any
+idea what the array could do.
 
-Before touching any of the architecture, the cheap test is to put both machines
-on the same network temporarily and re-run the benchmark. I wrote the threshold
-down before running it: 900+ MB/s would confirm the gateway was the bottleneck.
-
-Same network, Blackmagic Disk Speed Test, 5 GB test file:
+Same network, Blackmagic Disk Speed Test, 5 GB:
 
 - writes 200–300 MB/s
 - reads 300–700 MB/s, fluctuating
 
-That is not 900 MB/s. It is also not gigabit, and every number in it clears the
-old ceiling comfortably, so routing through the gateway was a real bottleneck and
-moving the traffic off it was a real improvement.
+Everything there clears the old gigabit ceiling comfortably, so moving the
+traffic off the gateway was a real improvement. Nothing there is 900 MB/s, and
+the session called the diagnosis confirmed anyway on the strength of the 700
+MB/s peak.
 
-But I called it a confirmation at the time, and it isn't a clean one. I set a
-bar, missed it, and accepted the result anyway by quietly promoting the 700 MB/s
-peak to "the result." The floor of that range is 300. Writing the threshold down
-beforehand isn't rigour for its own sake — the number on the page is the only
-thing that makes moving it visible afterwards.
+The interesting part isn't that the bar got missed. It's that the bar was never
+reachable. 900 MB/s is a network number, and this was a disk-bound test end to
+end: 300 MB/s turns out to be roughly what the array itself does. Setting a
+confirmation threshold above what the slowest component in the
+path can deliver means failing a test your diagnosis passed, and then either
+distrusting a correct diagnosis or quietly promoting the best number you saw.
+Pre-register the threshold, but price it against the slowest thing in the path.
 
-The shortfall wasn't the network either. The obvious suspect for a fluctuating
-read range was the NAS's NVMe cache — two 2 TB drives, vastly more than a 5 GB
-test file — but the appliance's own cache panel ruled that out: 16% read hit
-rate, 7% write hit rate, and the cache 90% full of a working set unrelated to the
-benchmark. If most reads were coming off the spinning array instead, 300 MB/s is
-roughly array speed and the 700 MB/s bursts are the occasional cache hit. I'll
-leave the write path alone, because a 7% write hit rate and "the writes were
-absorbed by cache" can't both be true and I don't know which one is wrong.
+The shortfall wasn't the network. The obvious suspect for a fluctuating read range
+was the NAS's NVMe cache — two 2 TB drives, vastly more than a 5 GB test file —
+but the cache panel pointed away from it: 16% read hit rate, 7% write hit rate,
+90% full. Those are appliance-wide figures accumulated over 3,207 powered-on
+hours, not per-test ones, so read them as suggestive. If most reads came off the
+spinning array, 300 MB/s is roughly array speed and the 700 MB/s bursts are the
+cache occasionally serving. The write path I can't reconcile at all: a 7% write
+hit rate is hard to square with writes being absorbed by cache, and I don't know
+whether the metric means something other than what I assume.
 
 ## Where this actually ended
 
 The proper fix — NAS onto its own storage network, inter-VLAN routing handed to
-the switch — is not done. I have a plan and no deployment, and the same-subnet
-test isn't a fix. It's a test I've left in place.
+the switch — is not done. I have a plan and no deployment.
 
-What did ship was the thing that makes the move safe later, and it only exists
-because the first version of the plan put it in the wrong place. It was the last
-step, filed as a nice-to-have: once everything's moved, switch from hardcoded
-addresses to hostnames so the next change is easier.
+Which makes the honest headline that the cheap fix was good enough to live with.
+Both machines still share a network, and that's worth pricing rather than
+celebrating. A storage array and a workstation sharing one network is exactly the
+boundary I just finished arguing against, and mine is still eroded.
 
-Last is the wrong place for it. The cutover then changes the NAS's address and
-every consumer's configuration simultaneously, so anything that breaks
-afterwards is ambiguous between a routing fault and a stale mount.
+The other thing that came out of the session was a sequencing argument, and I
+want to be exact about its status because it's advice, not a report. What shipped
+is a DNS record for the NAS and a verified resolution path — two `dig` runs
+through both resolvers, still resolving when I came back to it days later.
+Nothing points at that name yet. Repointing the consumers is on the list of
+things I deliberately haven't done.
 
-Front-loading it removes the ambiguity. Point every consumer at
-`nas.example.com` while the address is still the old one and nothing has moved.
-Verify each one resolves by name, then power-cycle it and verify again, because a
-mount that works until something restarts three weeks later isn't done. Only
-then move the box: one DNS record changes, and if something breaks at that point
-it broke because it wasn't going through DNS like you thought it was.
+The plan originally had the hostname switch last, as a nice-to-have: once
+everything's moved, stop using addresses so the next change is easier. That's the
+wrong position for it, because it makes the cutover change the NAS's address and
+every consumer's configuration at once, and anything that breaks afterwards is
+ambiguous between a routing fault and a stale mount.
+
+Front-loading it removes the ambiguity. Point every consumer at the name while the
+address is still the old one and nothing has moved. Verify each resolves by name,
+then power-cycle it and verify again, because a mount that works until something
+restarts three weeks later isn't done. Only then move the box: one DNS record
+changes, and if something breaks then, it broke because it wasn't going through
+DNS like you thought.
 
 That's the piece I'd keep if I could only keep one, and it has nothing to do with
 10GbE.
@@ -198,28 +236,28 @@ That's the piece I'd keep if I could only keep one, and it has nothing to do wit
 
 1. **Run `route get <destination>` before you suspect hardware.** If `gateway:`
    is populated and `flags:` says `GATEWAY`, your two machines aren't talking
-   over the switch, whatever the switch cost. It costs ten seconds and it
+   over the switch, whatever the switch cost. It's the cheapest thing that
    eliminates the expensive wrong answer, which is returning a working adapter.
-2. **Read the whole diagnostic, not the field you asked for.** Mine killed the
-   theory I ran it for in the line I was watching, and named the real one two
-   lines above.
-3. **Write the success threshold down before you run the test.** Otherwise you
-   will find yourself confirming a diagnosis against the best number in a
-   fluctuating range, and it will feel like rigour at the time.
+2. **Know what that command can't see.** It reports where a new connection would
+   go, not where an established session already went — and a clean result rules
+   out routing, not disks, dirty links, or a stale mount.
+3. **Price your confirmation threshold against the slowest component in the
+   path.** A network number applied to a disk-bound test fails a diagnosis that
+   was correct.
 4. **Check the network can actually delegate its routing before planning around
-   it.** Ubiquiti documents the feature; it doesn't document which networks
-   don't offer it, and on my controller the Default network didn't.
+   it.** Ubiquiti documents the feature; it doesn't document which networks don't
+   offer it, and on my controller the Default network didn't.
 5. **"All the vendor's devices belong on the management network" is not a design
    principle.** It's a filing habit, and it put a storage array on a control
    plane where it quietly cost me most of a 10G link.
 
 ---
 
-*Addresses, hostnames, and network names in the output above are placeholders;
-the field names, flags, and structure are as captured. The transfer figures are
-the ones I reported at the time, including the fact that the original one was
-never more precise than "gigabit speeds." The gateway's forwarding throughput,
-the switch port's negotiated speed, and the IDS/IPS state were never measured,
-and nothing here is presented as though they were. I didn't record OS or
-firmware versions that night, so this post doesn't carry any — treat the UniFi
-UI details as "as of mid-2026" and check them against your own controller.*
+*Addresses and hostnames in the output above are placeholders, and the `ifconfig`
+block is trimmed: the MAC and IPv6 lines are cut. Field names, flags and column
+structure are as captured. Throughput figures are the ones I reported at the time,
+including that the original was never more precise than "gigabit speeds." The
+gateway's forwarding throughput, the IDS/IPS state, the interface error counters
+and the NAS's uplink speed were never measured directly. I didn't record OS or
+firmware versions that night, so the UniFi UI behaviour above isn't pinned to a
+version of an actively updated feature — re-check it against your own controller.*
