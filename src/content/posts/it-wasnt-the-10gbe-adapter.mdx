@@ -3,7 +3,7 @@ title: "It wasn't the 10GbE adapter"
 description: "Transfers to the NAS ran at gigabit over a link the Mac called 10Gbase-T. The adapter was fine. The two machines were on different subnets."
 pubDate: 2026-07-30
 tags: ['homelab', 'networking']
-draft: true
+draft: false
 symptom: 'Transfers to the NAS ran at gigabit speeds over a link the Mac reported as 10Gbase-T, full duplex, active'
 cause: 'The two machines were on different subnets, so every packet went through the gateway instead of staying on the switch — because I had filed the NAS on the management network when I built it'
 stack: []
