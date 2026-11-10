@@ -180,9 +180,12 @@ about 39% to 58% as the engine started. Blocking waits on a week of alerts
 reviewed for false positives.
 
 Raw reads printed secrets into the session transcript four times, the worst
-being the full site settings. None reached the repo. The one usable from the
-internet, a DNS API token, was replaced once the work was done; of the rest, one
-was regenerated, one died with its server, and I've left the others for now. Even
+being the full site settings. None reached the repo. Once the work was done I
+replaced the one usable from the internet, a DNS API token, changed the device
+SSH password and turned off an unused RADIUS server; another secret had been
+regenerated along the way and one died with its server. The Wi-Fi, mesh and
+adoption keys I left on purpose, because changing them means re-onboarding
+devices. Even
 the rotation needed a read-back: the helper's edit failed halfway and left the old
 token in two of the three places that hold it, which only checking all three
 afterwards caught.
