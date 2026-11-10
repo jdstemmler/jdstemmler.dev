@@ -169,8 +169,7 @@ they can't reach the rest of the house, and nobody has tried from a device on
 them. The work laptop's one deny test was against a host I later allowed it to
 reach. The TV's no-internet rule has never been seen blocking anything.
 
-Still open: the Management network's renumber into the scheme is prepared, not
-run. IPS is off; I turned it off when it appeared to stall SSH to the new
+Still open: IPS is off; I turned it off when it appeared to stall SSH to the new
 hypervisor network, no IPS event ever confirmed that, and I haven't decided
 whether to turn it back on. And raw reads printed secrets into the session
 transcript four times, the worst being the full site settings. None reached the
@@ -199,6 +198,26 @@ These are the review's recommendations, trimmed to the ones I'd act on.
 
 If I ever package these helpers as a reusable UniFi admin library, items 4 and 5
 are where it starts.
+
+## The last step
+
+The final change, on 2026-11-09, was renumbering Management, the default network
+UniFi won't let you delete, into the scheme.
+
+The prep found two traps. Every UniFi device reported to the gateway's old
+management address, which was about to disappear. And with day-long DHCP leases, a
+device could sit on its old address, out of reach, until the next day. So the
+devices got an SSH key, leases dropped to five minutes, and renewals were forced
+over SSH. Four small models have no usable SSH and stayed on long leases.
+
+The cautious path was to repoint one access point by hand, then turn on UniFi's
+inform-host override, then renumber. I chose to test whether UniFi would repoint
+the devices itself, with SSH and saved port snapshots as the fallback. It did.
+Within about two and a half minutes all 14 devices were connected on their new
+addresses, each keeping its last octet, the four without SSH included. The 5G
+backup's link subnet moved on its own. None of the fallbacks were needed, and the
+Mac mini, talking to the gateway through its Servers address, kept its connection
+throughout.
 
 ---
 
