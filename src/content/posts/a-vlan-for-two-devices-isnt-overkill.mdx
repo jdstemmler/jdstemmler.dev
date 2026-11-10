@@ -138,23 +138,23 @@ nothing had dropped. IoT moved in one run instead of batches. Each worked.
 ## What broke, and who noticed
 
 Some checks asked the right question and caught breaks inside the session:
-Proxmox metrics after a server moved, a TV tuner Plex showed as dead, and Home
-Assistant losing the camera recorder. The breaks that got through were the ones
+Proxmox metrics after a server moved, a TV tuner the media server showed as
+dead, and Home Assistant losing the camera recorder. The breaks that got through were the ones
 where a check confirmed a host answered and something behind it had stopped
 working.
 
 | What broke | How long | Surfaced by |
 |---|---|---|
-| Sonarr and Radarr reached the download client by its old address; every download client reported failing | About six hours, overnight | Me |
+| Two media apps reached their download client by its old address; both reported it failing | About six hours, overnight | Me |
 | The download client rejected its new hostname, breaking a dashboard card | Not recorded | A parallel Claude session |
-| Tautulli still pointed at Plex's old address; the plan had assumed a name | About an hour | Later work that evening |
+| A stats service still pointed at the media server's old address; the plan had assumed a name | About an hour | Later work that evening |
 | The mini's Apple content cache stopped serving clients on another subnet | A few hours, silently | Me, asking whether it still worked |
 
 After the dashboard change, Claude's check confirmed the dashboard loaded, not that
-each service behind it accepted the new hostname. Sonarr and Radarr flagged the
+each service behind it accepted the new hostname. The media apps flagged the
 broken download client in their own health status for about six hours, and no check
 looked there. The plan listed addresses held in config files, mounts, SSH configs
-and several app settings, but not the ones inside Sonarr, Radarr and Tautulli.
+and several app settings, but not the ones inside the media apps.
 And the topology change itself broke things: separating hosts from their clients
 broke the content cache's local-subnets-only flag, and consolidating servers into
 one /24 put them all under the DNS filter's per-/24 rate limit.
@@ -214,7 +214,7 @@ server. The rest I left on purpose.
 
 These are the review's recommendations, trimmed to the ones I'd act on.
 
-1. **Ask each app for its own health, before and after.** Sonarr reports failing
+1. **Ask each app for its own health, before and after.** Media apps report failing
    download clients, Prometheus knows which targets are down, and comparing Home
    Assistant's unavailable count to a baseline worked well here. One command,
    diffed.
