@@ -179,8 +179,13 @@ inspecting it would cost the gateway CPU for little gain. Gateway CPU went from
 about 39% to 58% as the engine started. Blocking waits on a week of alerts
 reviewed for false positives.
 
-Still open: raw reads printed secrets into the session transcript four times, the worst being the full site settings. None reached the
-repo, and the WireGuard server from the first leak was replaced.
+Raw reads printed secrets into the session transcript four times, the worst
+being the full site settings. None reached the repo. The one usable from the
+internet, a DNS API token, was replaced once the work was done; of the rest, one
+was regenerated, one died with its server, and I've left the others for now. Even
+the rotation needed a read-back: the helper's edit failed halfway and left the old
+token in two of the three places that hold it, which only checking all three
+afterwards caught.
 
 ## Next time
 
