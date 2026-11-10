@@ -3,7 +3,7 @@ title: "A VLAN for two devices isn't overkill"
 description: 'I rebuilt my UniFi network around roles, mostly through the API with Claude Code. The design held up; checks that only asked whether hosts answered did not.'
 pubDate: 2026-11-09
 tags: ['homelab', 'networking', 'claude']
-draft: true
+draft: false
 symptom: 'Networks added one at a time with no plan: a lab subnet inside Docker’s default address pools, storage on the management network, IoT in a zone that allowed everything'
 cause: 'Nothing had been designed, and the obvious shortcut for isolating a device, a gateway firewall rule on a shared subnet, never sees the traffic it is meant to stop'
 stack: ['UDM Pro', 'UniFi OS 5.1.33', 'UniFi Network 10.6.106']
