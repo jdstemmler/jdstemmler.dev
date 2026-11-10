@@ -1,0 +1,157 @@
+---
+// Zone diagram for the UniFi migration post: one box per network, default deny
+// between zones, arrows only for the main deliberate exceptions. Static SVG,
+// themed through the site tokens; Work is the one --signal element.
+---
+
+<figure class="zone-map">
+  <svg viewBox="0 0 420 420" role="img" aria-labelledby="zm-title zm-desc">
+    <title id="zm-title">Firewall zones and their exceptions</title>
+    <desc id="zm-desc">
+      Eleven networks, each its own firewall zone. Trusted and the admin VPN have
+      admin access to every network. Home Assistant on Servers and the IoT network
+      reach each other, and IoT uses DNS on Servers. DMZ reaches DNS and one app on
+      Servers. Hypervisors reach storage on Servers, and the Mac mini on Servers has
+      admin access back. The work laptop on the Work network reaches two hosts on
+      Servers. The work VPN is walled off. Management, Lab and Guest have no
+      exceptions drawn.
+    </desc>
+    <defs>
+      <marker id="zm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" class="zm-head" />
+      </marker>
+      <marker id="zm-arrow-signal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" class="zm-head-signal" />
+      </marker>
+    </defs>
+
+    <!-- Admin tier -->
+    <rect x="10" y="12" width="190" height="40" rx="3" class="zm-box" />
+    <text x="105" y="37" class="zm-name">Trusted</text>
+    <rect x="220" y="12" width="190" height="40" rx="3" class="zm-box" />
+    <text x="315" y="37" class="zm-name">Admin VPN</text>
+
+    <text x="210" y="74" class="zm-label">admin access to every network</text>
+    <line x1="58" y1="82" x2="362" y2="82" class="zm-line" />
+    <line x1="58" y1="82" x2="58" y2="99" class="zm-line" marker-end="url(#zm-arrow)" />
+    <line x1="210" y1="82" x2="210" y2="99" class="zm-line" marker-end="url(#zm-arrow)" />
+    <line x1="362" y1="82" x2="362" y2="99" class="zm-line" marker-end="url(#zm-arrow)" />
+
+    <!-- Row B -->
+    <rect x="10" y="102" width="96" height="40" rx="3" class="zm-box" />
+    <text x="58" y="127" class="zm-name">Management</text>
+    <rect x="162" y="102" width="96" height="40" rx="3" class="zm-box" />
+    <text x="210" y="127" class="zm-name">Hypervisors</text>
+    <rect x="314" y="102" width="96" height="40" rx="3" class="zm-box" />
+    <text x="362" y="127" class="zm-name">Lab</text>
+
+    <!-- Hypervisors <-> Servers -->
+    <line x1="196" y1="146" x2="196" y2="202" class="zm-line" marker-end="url(#zm-arrow)" />
+    <text x="188" y="178" class="zm-label zm-end">storage</text>
+    <line x1="224" y1="202" x2="224" y2="146" class="zm-line zm-dash" marker-end="url(#zm-arrow)" />
+    <text x="232" y="178" class="zm-label zm-start">Mac mini: admin</text>
+
+    <!-- Row C -->
+    <rect x="10" y="206" width="96" height="40" rx="3" class="zm-box" />
+    <text x="58" y="231" class="zm-name">IoT</text>
+    <rect x="162" y="206" width="96" height="40" rx="3" class="zm-box" />
+    <text x="210" y="231" class="zm-name">Servers</text>
+    <rect x="314" y="206" width="96" height="40" rx="3" class="zm-box" />
+    <text x="362" y="231" class="zm-name">DMZ</text>
+
+    <line x1="110" y1="226" x2="158" y2="226" class="zm-line" marker-start="url(#zm-arrow)" marker-end="url(#zm-arrow)" />
+    <text x="134" y="219" class="zm-label">HA</text>
+    <text x="134" y="241" class="zm-label">DNS</text>
+    <line x1="310" y1="226" x2="262" y2="226" class="zm-line" marker-end="url(#zm-arrow)" />
+    <text x="286" y="219" class="zm-label">DNS,</text>
+    <text x="286" y="241" class="zm-label">1 app</text>
+
+    <!-- Work -> Servers, the post's argument -->
+    <line x1="210" y1="306" x2="210" y2="250" class="zm-line zm-signal" marker-end="url(#zm-arrow-signal)" />
+    <text x="218" y="282" class="zm-label zm-start zm-signal-text">laptop: 2 hosts</text>
+
+    <!-- Row D -->
+    <rect x="10" y="310" width="96" height="40" rx="3" class="zm-box" />
+    <text x="58" y="335" class="zm-name">Guest</text>
+    <rect x="162" y="310" width="96" height="40" rx="3" class="zm-box zm-signal-box" />
+    <text x="210" y="335" class="zm-name zm-signal-text">Work</text>
+    <rect x="314" y="310" width="96" height="40" rx="3" class="zm-box zm-dash" />
+    <text x="362" y="328" class="zm-name">Work VPN</text>
+    <text x="362" y="343" class="zm-label">walled off</text>
+
+    <text x="210" y="388" class="zm-label">No arrow: denied.</text>
+    <text x="210" y="406" class="zm-label">Each network is its own zone.</text>
+  </svg>
+  <figcaption>
+    Traffic between zones is denied unless an arrow says otherwise. These are the
+    main exceptions, not every rule. Work, highlighted, is the two-device network
+    this post defends.
+  </figcaption>
+</figure>
+
+<style>
+  .zone-map {
+    margin: 2rem 0;
+    max-width: 34rem;
+  }
+  .zone-map svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    color: var(--paper);
+  }
+  .zone-map figcaption {
+    margin-top: 0.75rem;
+    color: var(--muted);
+    font-size: 0.85em;
+  }
+  .zm-box {
+    fill: var(--ink-2);
+    stroke: var(--muted);
+    stroke-width: 1;
+  }
+  .zm-signal-box {
+    stroke: var(--signal);
+    stroke-width: 2;
+  }
+  .zm-dash {
+    stroke-dasharray: 4 3;
+  }
+  .zm-name,
+  .zm-label {
+    font-family: var(--font-mono);
+    text-anchor: middle;
+    fill: currentColor;
+  }
+  .zm-name {
+    font-size: 14px;
+  }
+  .zm-label {
+    font-size: 11.5px;
+    fill: var(--muted);
+  }
+  .zm-start {
+    text-anchor: start;
+  }
+  .zm-end {
+    text-anchor: end;
+  }
+  .zm-signal-text {
+    fill: var(--signal);
+  }
+  .zm-line {
+    stroke: var(--muted);
+    stroke-width: 1.25;
+    fill: none;
+  }
+  .zm-signal {
+    stroke: var(--signal);
+    stroke-width: 1.75;
+  }
+  .zm-head {
+    fill: var(--muted);
+  }
+  .zm-head-signal {
+    fill: var(--signal);
+  }
+</style>
