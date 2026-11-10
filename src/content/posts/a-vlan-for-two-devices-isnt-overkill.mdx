@@ -22,7 +22,7 @@ So the work devices got their own network, and so did everything else, by role.
 Between 2026-10-30 and 2026-11-08 I moved the house onto the new design and deleted
 the old networks. Claude Code did most of it through the UniFi Network API from my
 Mac mini. I did the rest by hand: the Cloudflare tunnel routes, the mDNS
-proxy, both WireGuard servers, the NAS's NFS permissions, and every check that
+proxy and IPS settings, both WireGuard servers, the NAS's NFS permissions, and every check that
 needed a phone or my eyes.
 
 Afterwards I had a separate Claude session review the plan and the log. Its
@@ -173,14 +173,13 @@ reach. The TV's no-internet rule has never been seen blocking anything.
 I turned IPS off on 2026-10-31 when it appeared to stall SSH to the new
 hypervisor network; no IPS event ever confirmed that. It went back on on
 2026-11-09 in detect-only mode, and only for DMZ, IoT, Guest and Work: what faces
-outside and the devices I don't control. My own machines stay out, partly because
+outside and the devices I don't control. My own machines stay out: they're mine, and
 storage traffic between the hypervisors and the NAS crosses the gateway, and
 inspecting it would cost the gateway CPU for little gain. Gateway CPU went from
 about 39% to 58% as the engine started. Blocking waits on a week of alerts
 reviewed for false positives.
 
-Still open: raw reads printed secrets into the session
-transcript four times, the worst being the full site settings. None reached the
+Still open: raw reads printed secrets into the session transcript four times, the worst being the full site settings. None reached the
 repo, and the WireGuard server from the first leak was replaced.
 
 ## Next time
@@ -201,8 +200,8 @@ These are the review's recommendations, trimmed to the ones I'd act on.
    a read-back, and keep that rollback data somewhere backed up rather than in a
    session's scratch folder.
 6. **End with a closing session**: scope down the access the migration created,
-   settle anything that leaked, finish IPS, and write an as-built document from a fresh
-   inventory.
+   settle anything that leaked, finish IPS, and write an as-built document from
+   a fresh inventory.
 
 If I ever package these helpers as a reusable UniFi admin library, items 4 and 5
 are where it starts.
