@@ -159,6 +159,28 @@ And the topology change itself broke things: separating hosts from their clients
 broke the content cache's local-subnets-only flag, and consolidating servers into
 one /24 put them all under the DNS filter's per-/24 rate limit.
 
+## The last step
+
+One step in the plan remained after the old networks were gone: on 2026-11-09,
+renumbering Management into the scheme.
+
+The prep found two traps. Every UniFi device reported to the gateway's old
+management address, which was about to disappear. And with day-long DHCP leases, a
+device could sit on its old address, out of reach, until the next day. So the
+devices got an SSH key, leases dropped to five minutes, and renewals were forced
+over SSH. Four models have no usable SSH and stayed on long leases.
+
+The cautious path was to repoint one access point by hand, then turn on UniFi's
+inform-host override, then renumber. I chose to test whether UniFi would repoint
+the devices itself, with SSH and saved port snapshots as the fallback. It did.
+Within about two and a half minutes all 14 devices were connected on their new
+addresses, most keeping their last octet, the four without SSH included. The 5G
+backup's link subnet moved on its own. None of the fallbacks were needed, and the
+Mac mini, talking to the gateway through its Servers address, kept its connection
+throughout. That's one observation on one controller, not a promise, and the bet
+was hedged: the fallbacks were already in hand, and the check afterwards asked
+whether every device connected and every service I tried still answered.
+
 ## Where it stands
 
 On 2026-11-08 the seven old networks were deleted one at a time through the API,
@@ -211,29 +233,6 @@ These are the review's recommendations, trimmed to the ones I'd act on.
 
 If I ever package these helpers as a reusable UniFi admin library, items 4 and 5
 are where it starts.
-
-## The last step
-
-The last step in the plan, on 2026-11-09, was renumbering Management into the
-scheme.
-
-The prep found two traps. Every UniFi device reported to the gateway's old
-management address, which was about to disappear. And with day-long DHCP leases, a
-device could sit on its old address, out of reach, until the next day. So the
-devices got an SSH key, leases dropped to five minutes, and renewals were forced
-over SSH. Four models have no usable SSH and stayed on long leases.
-
-The cautious path was to repoint one access point by hand, then turn on UniFi's
-inform-host override, then renumber. I chose to test whether UniFi would repoint
-the devices itself, with SSH and saved port snapshots as the fallback. It did.
-Within about two and a half minutes all 14 devices were connected on their new
-addresses, most keeping their last octet, the four without SSH included. The 5G
-backup's link subnet moved on its own. None of the fallbacks were needed, and the
-Mac mini, talking to the gateway through its Servers address, kept its connection
-throughout. That's one observation on one controller, not a promise. But it was
-the right kind of bet: the fallbacks were already in hand, and the check afterwards
-asked the functional question, whether every device connected and every service I
-tried still answered.
 
 ---
 
