@@ -107,8 +107,8 @@ one-off API calls. Changing one switch port, for instance, means sending back th
 switch's entire port-override array.
 
 **Writes were read back by hand**, though nothing enforced it. A
-`PUT rest/setting/mdns` returned success and changed nothing, and so, later, did
-`PUT rest/setting/ips`; I did both in the UI. Later, saving the device SSH key setting
+`PUT rest/setting/mdns` returned success and changed nothing, and so, at the very end, did
+`PUT rest/setting/ips`; I did both in the UI. Saving the device SSH key setting also
 silently regenerated an unrelated internal API token.
 
 **Mechanisms were proven on throwaway targets first.** One session checked that a
@@ -155,7 +155,7 @@ And the topology change itself broke things: separating hosts from their clients
 broke the content cache's local-subnets-only flag, and consolidating servers into
 one /24 put them all under the DNS filter's per-/24 rate limit.
 
-## Where it ended
+## Where it stands
 
 On 2026-11-08 the seven old networks were deleted one at a time through the API,
 after a backup and a redacted inventory. Every device reconnected. Proxmox quorum
@@ -171,24 +171,18 @@ them. The work laptop's one deny test was against a host I later allowed it to
 reach. The TV's no-internet rule has never been seen blocking anything.
 
 I turned IPS off on 2026-10-31 when it appeared to stall SSH to the new
-hypervisor network; no IPS event ever confirmed that. It went back on on
-2026-11-09 in detect-only mode, and only for DMZ, IoT, Guest and Work: what faces
-outside and the devices I don't control. My own machines stay out: they're mine, and
-storage traffic between the hypervisors and the NAS crosses the gateway, and
-inspecting it would cost the gateway CPU for little gain. Gateway CPU went from
+hypervisor network; no IPS event ever confirmed that. It was re-enabled on
+2026-11-09 in detect-only mode, on the networks that face outside or hold devices
+I don't control. Storage traffic between the hypervisors and the NAS crosses the
+gateway, and inspecting it would cost CPU for little gain. Gateway CPU went from
 about 39% to 58% as the engine started. Blocking waits on a week of alerts
 reviewed for false positives.
 
 Raw reads printed secrets into the session transcript four times, the worst
-being the full site settings. None reached the repo. Once the work was done I
-replaced the one usable from the internet, a DNS API token, changed the device
-SSH password and turned off an unused RADIUS server; another secret had been
-regenerated along the way and one died with its server. The Wi-Fi, mesh and
-adoption keys I left on purpose, because changing them means re-onboarding
-devices. Even
-the rotation needed a read-back: the helper's edit failed halfway and left the old
-token in two of the three places that hold it, which only checking all three
-afterwards caught.
+being the full site settings. None reached the repo. After the work I replaced
+the DNS API token, changed the device SSH password and turned off an unused RADIUS
+server; another secret had been regenerated along the way, and one died with its
+server. The rest I left on purpose.
 
 ## Next time
 
@@ -216,14 +210,14 @@ are where it starts.
 
 ## The last step
 
-The final change, on 2026-11-09, was renumbering Management, the default network
-UniFi won't let you delete, into the scheme.
+The last step in the plan, on 2026-11-09, was renumbering Management into the
+scheme.
 
 The prep found two traps. Every UniFi device reported to the gateway's old
 management address, which was about to disappear. And with day-long DHCP leases, a
 device could sit on its old address, out of reach, until the next day. So the
 devices got an SSH key, leases dropped to five minutes, and renewals were forced
-over SSH. Four small models have no usable SSH and stayed on long leases.
+over SSH. Four models have no usable SSH and stayed on long leases.
 
 The cautious path was to repoint one access point by hand, then turn on UniFi's
 inform-host override, then renumber. I chose to test whether UniFi would repoint
@@ -232,7 +226,10 @@ Within about two and a half minutes all 14 devices were connected on their new
 addresses, each keeping its last octet, the four without SSH included. The 5G
 backup's link subnet moved on its own. None of the fallbacks were needed, and the
 Mac mini, talking to the gateway through its Servers address, kept its connection
-throughout.
+throughout. That's one observation on one controller, not a promise. But it was
+the right kind of bet: the fallbacks were already in hand, and the check afterwards
+asked the functional question, whether every device connected and every service I
+tried still answered.
 
 ---
 
