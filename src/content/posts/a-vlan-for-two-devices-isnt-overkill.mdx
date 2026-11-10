@@ -106,8 +106,9 @@ ports, SSID mappings, DHCP settings and the networks themselves went through
 one-off API calls. Changing one switch port, for instance, means sending back that
 switch's entire port-override array.
 
-**Writes were read back by hand**, though nothing enforced it. A `PUT rest/setting/mdns` returned success and
-changed nothing; I did that one in the UI. Later, saving the device SSH key setting
+**Writes were read back by hand**, though nothing enforced it. A
+`PUT rest/setting/mdns` returned success and changed nothing, and so, later, did
+`PUT rest/setting/ips`; I did both in the UI. Later, saving the device SSH key setting
 silently regenerated an unrelated internal API token.
 
 **Mechanisms were proven on throwaway targets first.** One session checked that a
@@ -169,9 +170,16 @@ they can't reach the rest of the house, and nobody has tried from a device on
 them. The work laptop's one deny test was against a host I later allowed it to
 reach. The TV's no-internet rule has never been seen blocking anything.
 
-Still open: IPS is off; I turned it off when it appeared to stall SSH to the new
-hypervisor network, no IPS event ever confirmed that, and I haven't decided
-whether to turn it back on. And raw reads printed secrets into the session
+I turned IPS off on 2026-10-31 when it appeared to stall SSH to the new
+hypervisor network; no IPS event ever confirmed that. It went back on on
+2026-11-09 in detect-only mode, and only for DMZ, IoT, Guest and Work: what faces
+outside and the devices I don't control. My own machines stay out, partly because
+storage traffic between the hypervisors and the NAS crosses the gateway, and
+inspecting it would cost the gateway CPU for little gain. Gateway CPU went from
+about 39% to 58% as the engine started. Blocking waits on a week of alerts
+reviewed for false positives.
+
+Still open: raw reads printed secrets into the session
 transcript four times, the worst being the full site settings. None reached the
 repo, and the WireGuard server from the first leak was replaced.
 
@@ -193,7 +201,7 @@ These are the review's recommendations, trimmed to the ones I'd act on.
    a read-back, and keep that rollback data somewhere backed up rather than in a
    session's scratch folder.
 6. **End with a closing session**: scope down the access the migration created,
-   settle anything that leaked, decide on IPS, and write an as-built document from a fresh
+   settle anything that leaked, finish IPS, and write an as-built document from a fresh
    inventory.
 
 If I ever package these helpers as a reusable UniFi admin library, items 4 and 5
