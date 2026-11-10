@@ -1,0 +1,208 @@
+---
+title: "A VLAN for two devices isn't overkill"
+description: 'I rebuilt my UniFi network around roles, mostly through the API with Claude Code. The design held up; checks that only asked whether hosts answered did not.'
+pubDate: 2026-11-09
+tags: ['homelab', 'networking', 'claude']
+draft: true
+symptom: 'Networks added one at a time with no plan: a lab subnet inside Docker’s default address pools, storage on the management network, IoT in a zone that allowed everything'
+cause: 'Nothing had been designed, and the obvious shortcut for isolating a device, a gateway firewall rule on a shared subnet, never sees the traffic it is meant to stop'
+stack: ['UDM Pro', 'UniFi OS 5.1.33', 'UniFi Network 10.6.106']
+---
+
+Halfway through planning this, I asked the question I expect from readers: why
+build a whole network for a work laptop and a work phone? Give them fixed IPs,
+write a firewall rule, done.
+
+That doesn't work. The gateway's firewall only sees traffic that crosses between
+subnets. Two devices on one subnet talk straight through the switch or access
+point, and no gateway rule ever sees it. Put my work laptop on the trusted network
+with a rule for it and it can still reach every Mac, phone and speaker there.
+
+So the work devices got their own network, and so did everything else, by role.
+Between 2026-10-30 and 2026-11-08 I moved the house onto the new design and deleted
+the old networks. Claude Code did most of it through the UniFi Network API from my
+Mac mini. I did the rest by hand: the Cloudflare tunnel routes, the mDNS
+proxy, both WireGuard servers, the NAS's NFS permissions, and every check that
+needed a phone or my eyes.
+
+Afterwards I had a separate Claude session review the plan and the log. Its
+verdict was that the migration worked and its weak point was verification: our checks proved hosts answered, not
+that they worked. Where this post judges what went well and what didn't, it leans
+on that review; the durations and who-found-what below come from going back
+through the session transcripts, which the review didn't have.
+
+## What I started with
+
+Every network had been added to solve whatever was in front of me at the time;
+"nothing really was done with any intention." The lab subnet sat inside Docker's
+default address pools. The NAS shared the default network with the switches and
+APs ([that cost me most of a 10G link](/posts/it-wasnt-the-10gbe-adapter/)). And
+IoT sat in UniFi's Internal firewall zone, which allows everything inside itself:
+the zone firewall existed, and for IoT it enforced nothing.
+
+## The design
+
+One network per role, each its own firewall zone, deny between zones by default.
+Every subnet has the same layout: gateway first, then fixed addresses for
+infrastructure, a reserved block, and DHCP.
+
+| Network | Holds |
+|---|---|
+| Management | UniFi gear only |
+| Hypervisors | Proxmox nodes, a quorum device, KVMs |
+| Servers | Storage, DNS, Home Assistant, self-hosted services |
+| DMZ | Anything reachable from outside |
+| Trusted | Our computers, phones, Apple TVs, Sonos |
+| IoT | Cameras, bulbs, switches, printer, TV |
+| Guest, Work, Lab, VPN | What they say |
+
+Trusted and the admin VPN get admin access. Everything else gets only the
+allows it needs, each written down with its reason: 35 allows and 17 blocks of
+my own on top of UniFi's defaults. The exceptions are deliberate and few: Home Assistant reaches into IoT,
+the Mac mini keeps admin access from Servers, and the work VPN, which lands in
+UniFi's fixed VPN zone, is walled off with explicit block rules ahead of that
+zone's allows.
+
+- **No Wi-Fi change anyone would notice.** No SSID names or passwords changed,
+  because re-pairing bulbs one app at a time is the part of a migration nobody
+  wants. Both IoT SSIDs (renamed Sumatra and Reserve in these posts) just map to
+  the new IoT network.
+- **No camera network.** The cameras and their recorder stay together on IoT.
+- **Work devices get a network, not rules.** Client isolation can stop
+  same-subnet traffic too, but on a shared trusted network it has to be on every
+  port and SSID, and it breaks the discovery the rest of the house relies on:
+  AirPlay, Sonos, the printer. With a Work network, the work password lands on
+  Work wherever the laptop joins, and only a couple of wired ports have to be
+  right. Client isolation is also on for that SSID, which guests share. The laptop gets
+  the internet plus SSH and a few dev ports on two machines, and since it has
+  three network adapters, the rule's source is an IP group, not one address.
+
+## How it was executed
+
+I couldn't do this in one sitting, so the plan ran as numbered sessions, each the
+smallest unit that has to be finished once started, with the network fully
+working between any two.
+
+**Nothing was cut over.** All the new networks were created up front, empty,
+beside the old ones. Temporary firewall rules kept old and new talking, so "half
+the servers moved" was a stable state, and the plan named the step that would
+remove each one. All were removed.
+
+**The helper was dry-run by default.** Claude wrote `unifi.py` for repeated calls:
+every write needs `--apply`. The gateway's certificate is self-signed and not a
+CA, so it can't be a trust anchor; the helper pins its fingerprint, recorded on
+first use and checked against the browser, and refuses to send the API key on a
+mismatch:
+
+```python
+got = fingerprint(conn.sock.getpeercert(binary_form=True))
+if got != want:
+    conn.close()
+    sys.exit(f"TLS pin mismatch for {u.hostname}: got {got}, pinned {want}. Not sending the API key.")
+```
+
+It only covered DNS records and client settings, though. Firewall policies, switch
+ports, SSID mappings, DHCP settings and the networks themselves went through
+one-off API calls. Changing one switch port, for instance, means sending back that
+switch's entire port-override array.
+
+**Writes were read back by hand**, though nothing enforced it. A `PUT rest/setting/mdns` returned success and
+changed nothing; I did that one in the UI. Later, saving the device SSH key setting
+silently regenerated an unrelated internal API token.
+
+**Mechanisms were proven on throwaway targets first.** One session checked that a
+DHCP reservation could be set on a network the client hadn't joined yet, that a
+per-client override moves a Wi-Fi plug, and that a throwaway container on Lab
+reached the internet and nothing internal. That last test found Lab could still
+reach the gateway's admin page; the block was extended to the new zones the same
+day.
+
+**Risky moves had a rollback timer.** When a change could cut off the machine
+making it, a timer was armed first and cancelled from the new address once checks
+passed. It fired twice. One server's move rolled back after 2 minutes because
+disabling its switch port didn't drop the link, so it never renewed its address.
+Home Assistant's rolled back after 3.5 minutes. The fix for the first, forcing the
+port's link speed and then restoring autonegotiation, worked on the NAS, the Mac mini
+and the camera recorder, and failed on Home Assistant, which seems to have kept its lease through the bounce. It
+moved on the second try with a reboot.
+
+Some plan steps got compressed at my request. The overnight soak for the new cluster
+link ran 36 minutes, because both links shared the same cables and switches and
+nothing had dropped. IoT moved in one run instead of batches. Each worked.
+
+## What broke, and who noticed
+
+Some checks asked the right question and caught breaks inside the session:
+Proxmox metrics after a server moved, a TV tuner Plex showed as dead, and Home
+Assistant losing the camera recorder. The breaks that got through were the ones
+where a check confirmed a host answered and something behind it had stopped
+working.
+
+| What broke | How long | Surfaced by |
+|---|---|---|
+| Sonarr and Radarr reached the download client by its old address; every download client reported failing | About six hours, overnight | Me |
+| The download client rejected its new hostname, breaking a dashboard card | Not recorded | A parallel Claude session |
+| Tautulli still pointed at Plex's old address; the plan had assumed a name | About an hour | Later work that evening |
+| The mini's Apple content cache stopped serving clients on another subnet | A few hours, silently | Me, asking whether it still worked |
+
+After the dashboard change, Claude's check confirmed the dashboard loaded, not that
+each service behind it accepted the new hostname. Sonarr and Radarr flagged the
+broken download client in their own health status for about six hours, and no check
+looked there. The plan listed addresses held in config files, mounts, SSH configs
+and several app settings, but not the ones inside Sonarr, Radarr and Tautulli.
+And the topology change itself broke things: separating hosts from their clients
+broke the content cache's local-subnets-only flag, and consolidating servers into
+one /24 put them all under the DNS filter's per-/24 rate limit.
+
+## Where it ended
+
+On 2026-11-08 the seven old networks were deleted one at a time through the API,
+after a backup and a redacted inventory. Every device reconnected. Proxmox quorum
+held through moving both nodes' cluster link and management addresses, and
+backups ran cleanly afterwards.
+
+Isolation was tested from inside in two places: Lab, from a throwaway container,
+and the work VPN, from a café, where a hypervisor didn't answer by name or
+address. The gateway's admin block was tested from Servers and Hypervisors too.
+Isolation from inside IoT, Guest and Work is asserted, not tested: the rules say
+they can't reach the rest of the house, and nobody has tried from a device on
+them. The work laptop's one deny test was against a host I later allowed it to
+reach. The TV's no-internet rule has never been seen blocking anything.
+
+Still open: the Management network's renumber into the scheme is prepared, not
+run. IPS is off; I turned it off when it appeared to stall SSH to the new
+hypervisor network, no IPS event ever confirmed that, and I haven't decided
+whether to turn it back on. And raw reads printed secrets into the session
+transcript four times, the worst being the full site settings. None reached the
+repo, and the WireGuard server from the first leak was replaced.
+
+## Next time
+
+These are the review's recommendations, trimmed to the ones I'd act on.
+
+1. **Ask each app for its own health, before and after.** Sonarr reports failing
+   download clients, Prometheus knows which targets are down, and comparing Home
+   Assistant's unavailable count to a baseline worked well here. One command,
+   diffed.
+2. **Map dependencies from the apps, not the files.** Before a host moves, list
+   who calls it and where each stores the address.
+3. **Test the firewall from inside every network.** The Lab container works on any
+   network a hypervisor carries.
+4. **Redact at the output layer.** Redaction lived in one command, so every other
+   read printed raw, and the leak recurred three times after the first fix.
+5. **Put every write behind the helper**, with a dry run, a saved before-object and
+   a read-back, and keep that rollback data somewhere backed up rather than in a
+   session's scratch folder.
+6. **End with a closing session**: scope down the access the migration created,
+   settle anything that leaked, decide on IPS, and write an as-built document from a fresh
+   inventory.
+
+If I ever package these helpers as a reusable UniFi admin library, items 4 and 5
+are where it starts.
+
+---
+
+*Network names, SSIDs and addresses are described rather than printed. Counts,
+durations and test results come from the session log and transcripts kept during
+the work; the policy counts are from the API inventory taken before the old
+networks were deleted. Versions are what the gateway reported on 2026-10-30.*
