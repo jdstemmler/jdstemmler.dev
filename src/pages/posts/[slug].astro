@@ -2,6 +2,7 @@
 import { getCollection, render } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import DiagnosticStrip from '../../components/DiagnosticStrip.astro';
+import { formatDate } from '../../lib/dates';
 
 export async function getStaticPaths() {
   const posts = await getCollection('posts', ({ data }) => !data.draft);
@@ -15,41 +16,40 @@ const { post } = Astro.props;
 const { Content } = await render(post);
 const { title, description, pubDate, updatedDate, tags, symptom, cause, stack } = post.data;
 
-const fmt = (d: Date) => d.toISOString().slice(0, 10);
 ---
 
 <Base title={`${title} — jdstemmler.dev`} description={description}>
   <article>
     <header>
-      <p class="label">Debugging log</p>
       <h1 class="post-title">{title}</h1>
 
-      <dl class="meta">
-        <dt>Date</dt>
-        <dd>
-          <time datetime={pubDate.toISOString()}>{fmt(pubDate)}</time>
-          {
-            updatedDate && (
-              <>
-                {' '}· updated{' '}
-                <time datetime={updatedDate.toISOString()}>{fmt(updatedDate)}</time>
-              </>
-            )
-          }
-        </dd>
-        <dt>Tags</dt>
-        <dd class="tags">
-          {tags.map((tag) => <a href={`/tags/${tag}/`}>{tag}</a>)}
-        </dd>
+      <p class="byline">
+        <time datetime={pubDate.toISOString()}>{formatDate(pubDate)}</time>
         {
-          stack.length > 0 && (
+          updatedDate && (
             <>
-              <dt>Verified against</dt>
-              <dd class="verified">{stack.join(' · ')}</dd>
+              {' · updated '}
+              <time datetime={updatedDate.toISOString()}>{formatDate(updatedDate)}</time>
             </>
           )
         }
-      </dl>
+        {
+          tags.map((tag) => (
+            <>
+              {' · '}
+              <a href={`/tags/${tag}/`}>{tag}</a>
+            </>
+          ))
+        }
+        {
+          stack.length > 0 && (
+            <>
+              <br />
+              Verified against {stack.join(', ')}
+            </>
+          )
+        }
+      </p>
 
       {symptom && cause && <DiagnosticStrip symptom={symptom} cause={cause} />}
     </header>

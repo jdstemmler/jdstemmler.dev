@@ -1,7 +1,7 @@
 ---
-// The site's signature element: a two-channel instrument readout.
-// Symptom (muted, observed) over cause (signal, the needle deflection).
-// The cause row's reveal one beat after load is the entire site's motion budget.
+// The site's signature element: what it looked like over what it was.
+// Symptom in --muted; cause in full text weight, marked by a --signal label.
+// The cause line's reveal one beat after load is the entire site's motion budget.
 interface Props {
   symptom: string;
   cause: string;
@@ -22,54 +22,42 @@ const { symptom, cause } = Astro.props;
 </div>
 
 <style>
-  /* Unboxed instrument readout: mono labels and the signal gutter tick carry
-     the structure — no callout border (cold design read: the box diluted it). */
+  /* A quiet raised panel: the only boxed element in an article header. */
   .readout {
-    margin: 2.4rem 0 2.8rem;
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: 1.15rem 1.5rem;
+    margin: 0 0 2.4rem;
+    background: var(--ink-2);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
   }
   .row {
-    display: contents;
+    display: grid;
+    grid-template-columns: 5.2rem minmax(0, 1fr);
+    gap: 0.2rem 1rem;
+    padding: 0.95rem 1.15rem;
+  }
+  .row + .row {
+    border-top: 1px solid var(--rule);
   }
   .cell-label {
-    padding: 0.2rem 0 0 1rem;
-    display: flex;
-    align-items: flex-start;
-    position: relative;
+    padding-top: 0.12rem;
   }
-  .cell-value {
-    padding: 0;
+  .cell-label .label {
+    font-size: 0.8rem;
+  }
+  .row.cause .label {
+    color: var(--signal);
   }
   .cell-value p {
     margin: 0;
+    line-height: 1.5;
   }
   .sym-text {
-    font-family: var(--font-body);
-    font-size: 1.05rem;
-    line-height: 1.4;
+    font-size: 0.95rem;
     color: var(--muted);
   }
   .cause-text {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1.2rem;
-    line-height: 1.3;
-    letter-spacing: -0.005em;
-    color: var(--signal);
-  }
-  /* the needle: a signal tick in the cause label gutter */
-  .row.cause .cell-label::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0.1rem;
-    bottom: 0.1rem;
-    width: 3px;
-    background: var(--signal);
-    transform: scaleY(1);
-    transform-origin: top;
+    font-weight: 500;
+    color: var(--paper);
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -78,37 +66,17 @@ const { symptom, cause } = Astro.props;
       transform: translateY(4px);
       animation: reveal 420ms cubic-bezier(0.2, 0.7, 0.2, 1) 180ms forwards;
     }
-    .row.cause .cell-label::before {
-      transform: scaleY(0);
-      animation: tick 420ms cubic-bezier(0.2, 0.7, 0.2, 1) 180ms forwards;
-    }
     @keyframes reveal {
       to {
         opacity: 1;
         transform: translateY(0);
       }
     }
-    @keyframes tick {
-      to {
-        transform: scaleY(1);
-      }
-    }
   }
 
   @media (max-width: 620px) {
-    .readout {
-      grid-template-columns: 1fr;
-      gap: 0.45rem;
-    }
-    .cell-label {
-      padding: 0 0 0 1rem;
-    }
-    .row.cause .cell-label {
-      margin-top: 1.1rem;
-    }
-    .row.cause .cell-label::before {
-      top: 0;
-      bottom: 0;
+    .row {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>

@@ -1,0 +1,41 @@
+---
+// Post rows shared by the home page, the post index and tag pages: title with
+// the date at the right edge, the symptom/cause preview, then tag links.
+import type { CollectionEntry } from 'astro:content';
+import { formatDate } from '../lib/dates';
+
+interface Props {
+  posts: CollectionEntry<'posts'>[];
+  heading?: 'h2' | 'h3';
+}
+
+const { posts, heading: Heading = 'h2' } = Astro.props;
+---
+
+<ul class="post-list">
+  {
+    posts.map((post) => (
+      <li class="post-entry">
+        <Heading class="entry-title">
+          <a href={`/posts/${post.id}/`}>{post.data.title}</a>
+        </Heading>
+        <time class="entry-date" datetime={post.data.pubDate.toISOString()}>
+          {formatDate(post.data.pubDate)}
+        </time>
+        {post.data.symptom && post.data.cause && (
+          <dl class="mini-readout">
+            <dt>Symptom</dt>
+            <dd class="mini-sym">{post.data.symptom}</dd>
+            <dt class="is-cause">Cause</dt>
+            <dd class="mini-cause">{post.data.cause}</dd>
+          </dl>
+        )}
+        <p class="entry-tags">
+          {post.data.tags.map((tag) => (
+            <a href={`/tags/${tag}/`}>{tag}</a>
+          ))}
+        </p>
+      </li>
+    ))
+  }
+</ul>

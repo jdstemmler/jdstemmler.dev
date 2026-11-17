@@ -11,7 +11,6 @@ const projects = (await getCollection('projects', ({ data }) => !data.draft)).so
   title="Projects — jdstemmler.dev"
   description="Things I've built and shipped: self-hosted apps and the tooling behind this site."
 >
-  <p class="label">Projects</p>
   <h1 class="page-title">Projects</h1>
   <ul class="post-list">
     {
@@ -42,6 +41,6 @@ const projects = (await getCollection('projects', ({ data }) => !data.draft)).so
     color: var(--muted);
     font-size: 0.9rem;
     line-height: 1.55;
-    margin: 0.4rem 0 0.6rem;
+    margin: 0.35rem 0 0.5rem;
   }
 </style>
