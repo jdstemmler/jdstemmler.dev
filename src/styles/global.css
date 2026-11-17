@@ -1,8 +1,9 @@
 /* jdstemmler.dev — Graphite: one sans family on cool neutral greys, a single
-   blue reserved for "this is the thing" and for focus. Designed light-first;
-   dark is served through prefers-color-scheme. Token names are unchanged from
-   the first design so components keep working: --ink is the ground and --paper
-   is the text in whichever scheme is active. */
+   blue reserved for "this is the thing" and for focus. Two schemes, each tuned
+   on its own: light shows by default, dark through prefers-color-scheme. Any
+   change to one scheme gets checked in the other. Token names are unchanged
+   from the first design so components keep working: --ink is the ground and
+   --paper is the text in whichever scheme is active. */
 
 /* ---- Fonts: Geist + Geist Mono, Latin subset, self-hosted (OFL 1.1) ---- */
 @font-face {
@@ -46,13 +47,15 @@
   --ink: #ffffff; /* ground */
   --ink-2: #f4f5f6; /* raised surfaces, code blocks */
   --paper: #16181c; /* body text */
-  --muted: #62676f; /* metadata, captions — 5.3:1 on --ink-2 */
-  --signal: #2f5fd0; /* accent — only for "this is the thing" */
-  --wrong: #c4314b; /* struck-through wrong hypotheses */
-  --code-string: #1b7f68; /* string literals in highlighted code, nothing else */
+  --muted: #62676f; /* metadata, captions — 5.7:1 on --ink, 5.2:1 on --ink-2 */
+  --signal: #2f5fd0; /* accent — only for "this is the thing"; 5.2:1 on --ink-2 */
+  --wrong: #c4314b; /* struck-through wrong hypotheses — 5.4:1 */
+  --code-string: #18735e; /* string literals in highlighted code, nothing else — 5.3:1 on --ink-2 */
 
   --rule: color-mix(in srgb, var(--muted) 22%, transparent);
   --rule-2: color-mix(in srgb, var(--muted) 13%, transparent);
+  /* form-field outline: a control boundary, so it holds 3:1 in both schemes */
+  --field: color-mix(in srgb, var(--muted) 75%, var(--ink));
 
   --font-display: 'Geist', ui-sans-serif, system-ui, sans-serif;
   --font-body: 'Geist', ui-sans-serif, system-ui, sans-serif;
@@ -68,11 +71,11 @@
   :root {
     --ink: #0f1012;
     --ink-2: #17191c;
-    --paper: #ecedee;
-    --muted: #8b9098;
-    --signal: #7ca7ff;
-    --wrong: #f07178;
-    --code-string: #7fd0b8;
+    --paper: #e4e6e9; /* 15:1 — held just under white so long reads don't glare */
+    --muted: #8b9098; /* 5.9:1 on --ink, 5.5:1 on --ink-2 */
+    --signal: #7ca7ff; /* 7.4:1 on --ink-2 */
+    --wrong: #f07178; /* 6.7:1 */
+    --code-string: #7fd0b8; /* 9.7:1 on --ink-2 */
     color-scheme: dark;
   }
 }
@@ -99,6 +102,11 @@ body {
 
 a {
   color: inherit;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--signal) 28%, var(--ink));
+  color: var(--paper);
 }
 
 :focus-visible {
@@ -600,7 +608,7 @@ a {
   padding: 0.6rem 0.75rem;
   background: var(--ink);
   color: var(--paper);
-  border: 1px solid color-mix(in srgb, var(--muted) 45%, transparent);
+  border: 1px solid var(--field);
   border-radius: var(--radius);
   font: inherit;
   line-height: 1.5;
