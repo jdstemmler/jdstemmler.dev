@@ -49,20 +49,33 @@ Project write-ups live in `src/content/projects/*.mdx` (schema in `src/content.c
 
 ## Design
 
-```css
---ink:     #12141C;  /* ground */
---ink-2:   #1C202B;  /* raised surfaces, code blocks */
---paper:   #E8E6E1;  /* body text */
---muted:   #7C8496;  /* metadata, captions */
---signal:  #F2B705;  /* accent — only for "this is the thing" */
---wrong:   #E05252;  /* struck-through wrong hypotheses */
-```
+Graphite: one sans family on cool neutral greys, a single blue accent. Two schemes,
+equal in standing: light shows by default, dark through `prefers-color-scheme: dark`.
+Neither is derived from the other; each value below was chosen and contrast-checked
+in its own scheme. `--ink` is the ground and `--paper` is the text in either scheme.
 
-- Typefaces not chosen. Propose three display/body pairings before writing any CSS. Self-host them — no Google Fonts CDN.
-- Body 18–19px, measure capped ~68ch.
-- Dark is default; ship light mode. Respect `prefers-color-scheme` and `prefers-reduced-motion`.
-- Signature element is the diagnostic strip: symptom in `--muted`, cause in `--signal`.
-- Motion budget for the entire site: the cause line reveals one beat after the symptom on page load. Nothing else.
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `--ink` | `#FFFFFF` | `#0F1012` | ground |
+| `--ink-2` | `#F4F5F6` | `#17191C` | raised surfaces, code blocks, the strip |
+| `--paper` | `#16181C` | `#E4E6E9` | body text |
+| `--muted` | `#62676F` | `#8B9098` | metadata, captions |
+| `--signal` | `#2F5FD0` | `#7CA7FF` | accent — only for "this is the thing", and focus |
+| `--wrong` | `#C4314B` | `#F07178` | struck-through wrong hypotheses |
+| `--code-string` | `#18735E` | `#7FD0B8` | string literals in highlighted code, nothing else |
+
+- Typefaces: Geist (titles, body, labels) and Geist Mono (code only), self-hosted in
+  `public/fonts/` — no Google Fonts CDN.
+- Body 18px, measure capped ~68ch.
+- Any visual change is designed, contrast-checked and looked at in both schemes before
+  it ships: text 4.5:1 or better, form-field outlines 3:1 or better. Dark is not a
+  fallback. Respect `prefers-color-scheme` and `prefers-reduced-motion`. No theme
+  toggle (zero client JS).
+- Small labels are sentence case. No uppercase tracked mono, no genre eyebrows above titles.
+- Signature element is the diagnostic strip: a raised panel with the symptom in `--muted`
+  and the cause in `--paper` at medium weight, marked by a `--signal` "Cause" label.
+- Motion budget for the entire site: the cause line reveals one beat after the symptom on
+  page load. Nothing else.
 - Don't refactor the tokens. If something needs a new color, ask.
 
 ## Writing
