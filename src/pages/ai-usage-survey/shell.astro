@@ -1,0 +1,16 @@
+---
+// Template for the survey function (functions/ai-usage-survey/form.ts). The function
+// fetches this built page and fills #survey-slot, so server-rendered survey pages get
+// the site's layout and hashed CSS without duplicating either.
+import Base from '../../layouts/Base.astro';
+---
+
+<Base title="AI usage survey — jdstemmler.dev" noindex>
+  <div id="survey-slot">
+    <p class="label">Survey</p>
+    <h1 class="page-title">AI usage survey</h1>
+    <div class="prose">
+      <p><a href="/ai-usage-survey/">Start with your company code.</a></p>
+    </div>
+  </div>
+</Base>

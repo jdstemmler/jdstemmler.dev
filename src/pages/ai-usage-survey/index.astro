@@ -1,0 +1,34 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+  title="AI usage survey — jdstemmler.dev"
+  description="A short survey ahead of a lunch and learn session."
+  noindex
+>
+  <p class="label">Survey</p>
+  <h1 class="page-title">AI usage survey</h1>
+  <div class="prose">
+    <p>
+      A few short questions ahead of a lunch and learn. Your answers are anonymous and shape
+      what the session covers.
+    </p>
+  </div>
+  <form class="survey" method="post" action="/ai-usage-survey/form">
+    <div class="field">
+      <label class="label" for="code">Company code</label>
+      <input
+        id="code"
+        name="code"
+        type="text"
+        required
+        maxlength="64"
+        autocomplete="off"
+        autocapitalize="characters"
+        spellcheck="false"
+      />
+    </div>
+    <button type="submit">Continue</button>
+  </form>
+</Base>

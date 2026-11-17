@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local testing with `npm run survey:dev`.
+# In production this value is the SURVEY_CONFIG secret on the Pages project —
+# the real company codes and questions never live in this repo.
+SURVEY_CONFIG={"EXAMPLE-CODE":{"company":"Example Co","questions":[{"id":"liking","label":"What is working well for you?"},{"id":"frustrating","label":"What do you find frustrating?"}]}}

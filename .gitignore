@@ -18,6 +18,8 @@ scratch/
 
 # wrangler
 .wrangler/
+# local survey config (company codes and questions) — never commit
+.dev.vars
 
 # visual companion sessions
 .superpowers/
